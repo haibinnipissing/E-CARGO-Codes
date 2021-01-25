@@ -1,0 +1,688 @@
+/**
+ * An exhaustive search implementation of Group Role Assignment with Conflicting Agents on Roles (GRACAR);
+ * Based on the KM algorithm Java Code by Gary Baker (GPL v3), 2007 
+ * @author Haibin Zhu, 2016, revised 2020.
+ * * Please cite:
+ * [1]  H. Zhu, “Avoiding Conflicts by Group Role Assignment”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 46, no. 4, April 2016, pp. 535-547. 
+ * [2]	H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ * [3]  H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, 2006, pp. 578-589.  
+ */
+
+import java.text.DecimalFormat;
+import java.util.*;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.lang.Integer;
+
+class TestResult
+{
+	public boolean TF;
+	public double time;
+	public TestResult()
+	{
+		TF=false;
+		time =0;
+	}
+}
+public class GRACARE {
+	
+	static public void fill(int [] L, int x){
+		for (int i =0; i<L.length; i++)
+			L[i]=x;
+	}
+	
+    static public int[][] computeAssignments(float[][] matrix) {
+
+
+        // subtract minumum value from rows and columns to create lots of zeroes
+        reduceMatrix(matrix);
+
+
+        // non negative values are the index of the starred or primed zero in the row or column
+        int[] starsByRow = new int[matrix.length]; GRACARE.fill(starsByRow,-1);
+        int[] starsByCol = new int[matrix[0].length]; GRACARE.fill(starsByCol,-1);
+        int[] primesByRow = new int[matrix.length]; GRACARE.fill(primesByRow,-1);
+
+        // 1s mean covered, 0s mean not covered
+        int[] coveredRows = new int[matrix.length];
+        int[] coveredCols = new int[matrix[0].length];
+
+        // star any zero that has no other starred zero in the same row or column
+        initStars(matrix, starsByRow, starsByCol);
+        coverColumnsOfStarredZeroes(starsByCol,coveredCols);
+
+        while (!allAreCovered(coveredCols)) {
+
+            int[] primedZero = primeSomeUncoveredZero(matrix, primesByRow, coveredRows, coveredCols);
+
+            while (primedZero == null) {
+                // keep making more zeroes until we find something that we can prime (i.e. a zero that is uncovered)
+                makeMoreZeroes(matrix,coveredRows,coveredCols);
+                primedZero = primeSomeUncoveredZero(matrix, primesByRow, coveredRows, coveredCols);
+            }
+
+            // check if there is a starred zero in the primed zero's row
+            int columnIndex = starsByRow[primedZero[0]];
+            if (-1 == columnIndex){
+
+                // if not, then we need to increment the zeroes and start over
+                incrementSetOfStarredZeroes(primedZero, starsByRow, starsByCol, primesByRow);
+                GRACARE.fill(primesByRow,-1);
+                GRACARE.fill(coveredRows,0);
+                GRACARE.fill(coveredCols,0);
+                coverColumnsOfStarredZeroes(starsByCol,coveredCols);
+            } else {
+
+                // cover the row of the primed zero and uncover the column of the starred zero in the same row
+                coveredRows[primedZero[0]] = 1;
+                coveredCols[columnIndex] = 0;
+            }
+        }
+
+        // ok now we should have assigned everything
+        // take the starred zeroes in each column as the correct assignments
+
+        int[][] retval = new int[matrix.length][];
+        for (int i = 0; i < starsByCol.length;  i++) {
+            retval[i] = new int[]{starsByCol[i],i};
+        }
+        return retval;
+    }
+
+    static private boolean allAreCovered(int[] coveredCols) {
+        for (int covered : coveredCols) {
+            if (0 == covered) return false;
+        }
+        return true;
+    }
+
+
+    /**
+     * the first step of the hungarian algorithm
+     * is to find the smallest element in each row
+     * and subtract it's values from all elements
+     * in that row
+     *
+     * @return the next step to perform
+     */
+    static private void reduceMatrix(float[][] matrix) {
+
+        for (int i = 0; i < matrix.length; i++) {
+
+            // find the min value in the row
+            float minValInRow = Float.MAX_VALUE;
+            for (int j = 0; j < matrix[i].length; j++) {
+                if (minValInRow > matrix[i][j]) {
+                    minValInRow = matrix[i][j];
+                }
+            }
+
+            // subtract it from all values in the row
+            for (int j = 0; j < matrix[i].length; j++) {
+                matrix[i][j] -= minValInRow;
+            }
+        }
+
+        for (int i = 0; i < matrix[0].length; i++) {
+            float minValInCol = Float.MAX_VALUE;
+            for (int j = 0; j < matrix.length; j++) {
+                if (minValInCol > matrix[j][i]) {
+                    minValInCol = matrix[j][i];
+                }
+            }
+
+            for (int j = 0; j < matrix.length; j++) {
+                matrix[j][i] -= minValInCol;
+            }
+
+        }
+
+    }
+
+    /**
+     * init starred zeroes
+     *
+     * for each column find the first zero
+     * if there is no other starred zero in that row
+     * then star the zero, cover the column and row and
+     * go onto the next column
+     *
+     * @param costMatrix
+     * @param starredZeroes
+     * @param coveredRows
+     * @param coveredCols
+     * @return the next step to perform
+     */
+    static private void initStars(float costMatrix[][], int[] starsByRow, int[] starsByCol) {
+
+
+        int [] rowHasStarredZero = new int[costMatrix.length];
+        int [] colHasStarredZero = new int[costMatrix[0].length];
+
+        for (int i = 0; i < costMatrix.length; i++) {
+            for (int j = 0; j < costMatrix[i].length; j++) {
+                if (0 == costMatrix[i][j] && 0 == rowHasStarredZero[i] && 0 == colHasStarredZero[j]) {
+                    starsByRow[i] = j;
+                    starsByCol[j] = i;
+                    rowHasStarredZero[i] = 1;
+                    colHasStarredZero[j] = 1;
+                    break; // move onto the next row
+                }
+            }
+        }
+    }
+
+
+    /**
+     * just marke the columns covered for any coluimn containing a starred zero
+     * @param starsByCol
+     * @param coveredCols
+     */
+    static private void coverColumnsOfStarredZeroes(int[] starsByCol, int[] coveredCols) {
+        for (int i = 0; i < starsByCol.length; i++) {
+            coveredCols[i] = -1 == starsByCol[i] ? 0 : 1;
+        }
+    }
+
+
+    /**
+     * finds some uncovered zero and primes it
+     * @param matrix
+     * @param primesByRow
+     * @param coveredRows
+     * @param coveredCols
+     * @return
+     */
+    static  private int[] primeSomeUncoveredZero(float matrix[][], int[] primesByRow,
+                                       int[] coveredRows, int[] coveredCols) {
+
+
+        // find an uncovered zero and prime it
+        for (int i = 0; i < matrix.length; i++) {
+            if (1 == coveredRows[i]) continue;
+            for (int j = 0; j < matrix[i].length; j++) {
+                // if it's a zero and the column is not covered
+                if (0 == matrix[i][j] && 0 == coveredCols[j]) {
+
+                    // ok this is an unstarred zero
+                    // prime it
+                    primesByRow[i] = j;
+                    return new int[]{i,j};
+                }
+            }
+        }
+        return null;
+
+    }
+
+    /**
+     *
+     * @param unpairedZeroPrime
+     * @param starsByRow
+     * @param starsByCol
+     * @param primesByRow
+     */
+    static  private void incrementSetOfStarredZeroes(int[] unpairedZeroPrime, int[] starsByRow, int[] starsByCol, int[] primesByRow) {
+
+        // build the alternating zero sequence (prime, star, prime, star, etc)
+        int i, j = unpairedZeroPrime[1];
+
+        Set<int[]> zeroSequence = new LinkedHashSet<int[]>();
+        zeroSequence.add(unpairedZeroPrime);
+        boolean paired = false;
+        do {
+            i = starsByCol[j];
+            paired = -1 != i && zeroSequence.add(new int[]{i,j});
+            if (!paired) break;
+
+            j = primesByRow[i];
+            paired = -1 != j && zeroSequence.add(new int[]{ i, j });
+
+        } while (paired);
+
+
+        // unstar each starred zero of the sequence
+        // and star each primed zero of the sequence
+        for (int[] zero : zeroSequence) {
+            if (starsByCol[zero[1]] == zero[0]) {
+                starsByCol[zero[1]] = -1;
+                starsByRow[zero[0]] = -1;
+            }
+            if (primesByRow[zero[0]] == zero[1]) {
+                starsByRow[zero[0]] = zero[1];
+                starsByCol[zero[1]] = zero[0];
+            }
+        }
+
+    }
+
+
+    static  private void makeMoreZeroes(float[][] matrix, int[] coveredRows, int[] coveredCols) {
+
+        // find the minimum uncovered value
+        float minUncoveredValue = Float.MAX_VALUE;
+        for (int i = 0; i < matrix.length; i++) {
+            if (0 == coveredRows[i]) {
+                for (int j = 0; j < matrix[i].length; j++) {
+                    if (0 == coveredCols[j] && matrix[i][j] < minUncoveredValue) {
+                        minUncoveredValue = matrix[i][j];
+                    }
+                }
+            }
+        }
+
+        // add the min value to all covered rows
+        for (int i = 0; i < coveredRows.length; i++) {
+            if (1 == coveredRows[i]) {
+                for (int j = 0; j < matrix[i].length; j++) {
+                        matrix[i][j] += minUncoveredValue;
+                }
+            }
+        }
+
+        // subtract the min value from all uncovered columns
+        for (int i = 0; i < coveredCols.length; i++) {
+            if (0 == coveredCols[i]) {
+                for (int j = 0; j < matrix.length; j++) {
+                    matrix[j][i] -= minUncoveredValue;
+                }
+            }
+        }
+    }
+
+    public static int GetNumber(int [][]C, int m, int n)
+    {   
+	int s = 0, sp=1;	//The number of total pairs conflict agents 
+	for (int i = 0; i< m; i++)
+       	for (int j = i+1; j< m; j++)		//CA is a symmetric matrix and CA[i][i]=0;
+       		{	s+=C[i][j]; 
+       			if (C[i][j]==1)       				sp*=2;
+       		};
+       		return s;	
+}
+
+   
+     
+    public static int [][][] p(int [] LL, int [][]LA, int size, int pt, int t, int s)
+    { 
+  	int [][][] Com = new int [size][s][t+1];
+    if (s==1) {
+ 	  	 for (int i =0; i<pt; i++)		//BIG Problems!!!!!
+ 	  	 	{  		Com[i][s-1][0]=LL[s-1];
+ 	 		  		for (int k =0; k < t; k++) {
+ 	 		  				Com[i][s-1][k+1]=LA[i][k];
+ 	 		  		}
+ 	  	 	}
+ 	  	 }
+ 	 else
+ 	  	 {
+ 		 int tempsize=0;
+ 		 if (pt!=0) tempsize= size/pt;
+	 	 else System.out.println("Error!");
+ 		 for (int i =0; i<size; )		//Permutation!
+	  	 	{ 
+	  	 		int tmp =i;
+	  	 	 	for (int j =0; j<tempsize; j++)		//Repeat the same agent number sequences	 		
+	  	 	 	{	if (tempsize!=0) Com[tmp][s-1][0]=LL[s-1];
+	  	 			else System.out.println("Error!");
+	  	 	 	for (int k =0; k < t; k++) 
+	  	 	 			Com[tmp][s-1][k+1]=LA[i/tempsize][k];
+	  	 	 		tmp++;
+	  	 	 	}
+ 		  		int [][][] co = null;
+ 		  		if (s>1){
+		  		     co = p(LL, LA,  tempsize,  pt, t, s-1);			//Recursive call!  	
+ 		  		     p(LL, LA,  tempsize,  pt, t, s-1);			//Recursive call!  	
+	  	 	  	     for (int j =0; j<tempsize; j++)		//BIG Problems!!!!!
+	  	 	  	     {	int ts =s;
+	  	 	  		    while (ts>=2) {
+	  	 	  				for (int k =0; k < t+1; k++) 
+	  	 	  					Com[i][ts-2][k]=co[j][ts-2][k];
+	  	 	  				ts--;
+	  	 	  		    }
+	  	 	  		    i++;
+	  	 	  	     }
+ 		  		}
+	  	 	}
+ 	  	 }
+    return Com;
+}
+    public static void p1(int [] LL, int [][]LA, int size, int pt, int t, int s, int [][][]Com, int pw)
+    //t = the number of conflict pairs; s = the number of roles whose L >1, pt = 2^t; size = 2^(s*t)
+    { 
+
+ 		 int gs = (int)Math.pow(2, pw*t);//neeed more!!!!
+ 		 int tempsize= size/gs;
+ 		 if (tempsize ==0) return;
+ 		 for (int i =0; i<size; i+=tempsize)		//Permutation!
+	  	 	{  	int rpt= i/tempsize;
+//	  	 	System.out.println ("pt ="+pt+" s="+s+" i= "+i+" rpt= "+rpt);
+	  	 	 	for (int j =0; j<tempsize; j++)		//Repeat the same agent number sequences	 		
+	  	 	 	{	Com[i+j][s-1][0]=LL[s-1];
+	  	 			for (int k =0; k < t; k++) 
+	  	 	 			Com[i+j][s-1][k+1]=LA[rpt%pt][k];
+	  	 	 	}
+	  	 	}
+ 		 pw++;
+  		 if (s>1)    p1(LL, LA,  size,  pt, t, s-1, Com, pw);			//Recursive call!  	
+  		 else return;
+} 	 
+    public static int [][] GetOneCom(int [] LL, int [][]LA, int index,  int s, int t)
+    //t = the number of conflict pairs; s = the number of roles whose L >1;
+    { 
+    	int [][]OneCom = new int[s][t+1];
+        int pt = (int)Math.pow(2, t);
+    	int rpt = index;
+    	
+ 		 for (int i = 0; i<s; i++)		//Permutation!
+	  	 	{  
+//	  	 	System.out.println ("pt ="+pt+" s="+s+" i= "+i+" rpt= "+rpt);
+ 			 OneCom[i][0]=LL[i];
+	  	 	 for (int k =0; k < t; k++) 
+	  	 	 			OneCom[i][k+1]=LA[rpt%pt][k];
+ 		    rpt = rpt/pt;
+	  	 	}
+    return OneCom;
+} 	
+    public static int[][][] GetCom(int [][]CL, int [] LL, int s, int t)
+ {   
+   
+     int pt = (int)Math.pow(2, t);
+     int LA[][]=new int [pt][t];//The agent combination for one role 
+  	 for (int k = 0; k< pt; k++)
+   	 {		int bits= k;
+   			for (int p = 0; p<t; p++)
+   			{
+   				LA[k][p]=CL[p][bits%2];
+   				bits/=2;
+   			}
+ 	 }
+  	for (int k = 0; k< pt; k++)
+  			{for (int p = 0; p<t; p++)
+  				System.out.print(LA[k][p]+" ");
+				System.out.println();
+  			}
+	System.out.println();		
+  	 
+  	 int size= (int)Math.pow(2, t*s);
+  	 int [][][] COM = new int [size][s][t+1];
+  	 int pw = 1;
+  	 p1(LL, LA,  size,  pt, t, s, COM, pw);			//Recursive call!;
+
+
+  	 for (int i =0; i<size; i++)
+  	{
+  	  	 int [][] OneCom = GetOneCom(LL, LA,  i,  t, s);			//Recursive call!;
+ 		 
+  		 for (int j =0; j< s; j++)
+		  			{	System.out.print("(");
+  					for (int k =0; k < t+1; k++) 
+		    			System.out.print(OneCom[j][k]+" ");
+  					System.out.print(")");
+		  			}
+  	System.out.println();
+  	if (i%pt==pt-1)   	System.out.println(); 
+	}
+	System.out.println();
+		  				  	 
+ return COM;
+}
+ 
+    
+    public static float[][] ModifyQ(float [][] Q,  int [][]OneCom, int m, int n, int s, int t)     {
+    	
+    	float [][]QN = new float [m][n];
+    	for (int i = 0; i< m; i++)
+           	for (int j = 0; j< n; j++)		//CA is a symmetric matrix and CA[i][i]=0;
+           		QN[i][j]=Q[i][j];
+   		for (int k = 0; k< s; k++)
+			for (int i = 1; i<t+1; i ++ )
+				QN[OneCom[k][i]][OneCom[k][0]]=0;
+   		return QN;
+    }
+    
+
+	public static float ConflictRatedAssign(int [] L,  float [][] Q,  int [][]C, int [][] T, int m, int n, float th) {
+   //t = the number of conflict pairs; s = the number of roles whose L >1, pt = 2^t; size = 2^(s*t)
+		int s=0;
+       	for (int j = 0; j< n; j++)  		if (L[j]>1) s++;
+       	int []LL = new int [s];//the indices of roles whose lower range >1;
+       	int rx=0;
+       	for (int j = 0; j < n; j++) if (L[j]>1) {LL[rx++]=j;};
+       	int t=0;
+      //CA is a symmetric matrix and CA[i][i]=0;
+       	for (int i = 0; i< m; i++)           	for (int j = i+1; j< m; j++)            		if (C[i][j]==1)       	t++;
+        int [][]CL = new int [t][2];
+        int in =0;
+        for (int i = 0; i< m; i++)           	for (int j = i+1; j< m; j++)		if (C[i][j]==1)       	{ CL[in][0]=i; CL[in++][1]=j;}
+        int pt = (int)Math.pow(2, t);
+        int LA[][]=new int [pt][t];//The agent combination for one role 
+     	 for (int k = 0; k< pt; k++)
+      	 {		int bits= k;
+      			for (int p = 0; p<t; p++)      			{      				LA[k][p]=CL[p][bits%2];      				bits/=2;      			}
+    	 }
+/*     	for (int k = 0; k< pt; k++)
+     			{for (int p = 0; p<t; p++)
+     				System.out.print(LA[k][p]+" ");
+   				System.out.println();
+     			}
+   	System.out.println();		
+*/
+ 	 int size= (int)Math.pow(2, t*s);
+ 	int TF[][] =new int [m][n];
+	float maxV = 0;
+  	System.out.println("size="+size+"s= "+s+" t="+t);		
+  	 for (int i = 0; i< size; i++)
+	{  	int [][]OneCom = GetOneCom(LL, LA, i, s, t);
+//	 	   System.out.print("i="+i);
+// 		 for (int j =0; j< s; j++)			{  System.out.print(" (");			for (int k =0; k < t+1; k++) 			System.out.print(OneCom[j][k]+" ");			System.out.print(")");			}
+// 		 System.out.println();
+ //		 if (i%pt==pt-1)   	System.out.println(); 
+ 	 	float [][]NQ =new float [m][n];
+ 	 	if (s>0) 	 		{NQ= ModifyQ(Q, OneCom, m, n, s, t);}
+ 	 	else 			 for (int k =0; k < m; k++) 				 for (int j =0; j< n; j++) NQ[k][j]=Q[k][j];
+ 	 	float v=RatedAssign(L, NQ, TF, m, n, th);
+ 	// 	System.out.println("v= "+v); 
+		if (v>maxV) {			maxV = v;	     	for (int k = 0; k< m; k++)	     		for (int p = 0; p<n; p++)	     			T[k][p] = TF[k][p];		}
+	}
+ 	 return maxV;
+	}
+    
+	public static float RatedAssign(int [] L,  float [][] Q, int [][] T, int m, int n, float th) {
+		float v=0.0f;
+		int cnt=0, LL[]=new int [m];
+		float Q1[][]= new float [m][n];
+		//Check if it can be a square matrix.
+		for (int i = 0; i<n; i++) cnt +=L[i];
+		if (cnt > m) return 0.0f;//Not enough agents.
+		//Adjust Q with the threshold.
+		for (int i = 0; i < m; i++)			for (int j =0; j< n; j++)				if (Q[i][j]<=th) Q1[i][j]=-m*m;				else Q1[i][j]=Q[i][j];
+		float CC[]= new float [n]; //		CC[] is the numbers of qualified agents for roles.
+		int D[]= new int [n];		//D is a vector for the difference between the number required current agents and the number of actual current agents for each role.   
+		for (int j =0; j< n; j++)
+		{	for (int i = 0; i < m; i++)			{		if (Q1[i][j]>th)	 CC[j]=CC[j]+1;			}
+			D[j]=(int)( L[j]-CC[j]);		if (D[j]>0) return 0.0f;//One role has not enough agents..
+		}
+		//Create the index vector.
+		int index=0;
+		for (int j = 0; j<n; j++)				for (int k = 0; k<L[j]; k++) LL[index++] =j;
+		for (int k = index; k < m; k++) 			LL[k]=n;//fill the left columns (roles).
+
+		float [][] M = new float [m][m];
+		for (int i = 0; i<m; i++)
+		{ 	index =0;
+			for (int j = 0; j<n; j++)			{				for (int k = 0; k<L[j]; k++)					M[i][index++]=1-Q1[i][j];			}
+			//for (int k = index; k < m; k++)//fill the left columns (roles).
+				//M[i][k]=1;
+		}
+	    //for (int i = 0; i < m; i++)			{System.out.print (LL[i]);System.out.print (" ");	}		System.out.println ();		
+		//for (int i = 0; i < m; i++)		{	for (int j =0; j< m; j++)			{			System.out.print (M[i][j]);	System.out.print (" ");	}System.out.println ();		}
+		int [][] N = computeAssignments(M);
+	System.out.println("N.l= "+ N.length); 
+		for (int i = 0; i < N.length; i++)
+		{	for (int j =0; j< N[0].length; j++)
+			{	
+			System.out.print (N[i][j]);	System.out.print (" ");	}System.out.println ();
+		}
+
+		//Obtaing the matrix T.
+		for (int i = 0; i<m; i++)		{ 	for (int j = 0; j<n; j++)			{					T[i][j]=0;			}		}		
+		for (int i = 0; i < N.length; i++)
+			if (LL[N[i][1]]< n)			{				if (Q1[N[i][0]][LL[N[i][1]]]>0.0f) T[N[i][0]][LL[N[i][1]]]=1;				else return -1.0f;			}		
+//		System.out.println ("v="+v);
+		//check if it is a workable group:
+		//		System.out.println ("T:");
+		//for (int i = 0; i<m; i++)		{ 	for (int j = 0; j<n; j++)				{System.out.print(T[i][j]+" ");}		System.out.println ();		}		System.out.println ();
+	for (int j =0; j< n; j++)
+		{	CC[j]=0;
+			for (int i = 0; i < m; i++)			{			 if (Q[i][j]>th) CC[j]=CC[j]+T[i][j];			}
+			D[j]=(int)(L[j]-CC[j]);		if (D[j]>0)  return -1.0f;//One role has not enough agents..
+		}
+
+		//		System.out.println ();
+		for (int i = 0; i<m; i++)		 	for (int j = 0; j<n; j++)				v += Q[i][j]*T[i][j];
+		return v;
+	}
+	public static void split(int i, int j, Set<Integer> s1, Set<Integer> s2) {
+		if ((s1.contains(new Integer(i)))&&(s2.contains(new Integer(j)))) return;
+		if ((s1.contains(new Integer(i)))&&(!s2.contains(new Integer(j)))) 	{		s2.add(new Integer(j)); return ;}
+		if ((!s1.contains(new Integer(i)))&&(s2.contains(new Integer(j)))) 	{		s1.add(new Integer(i)); return ;}
+			s1.add(new Integer(i));
+			s2.add(new Integer(j));
+	}
+	
+	public static TestResult RandomTest() {
+		Random generator = new Random();
+		DecimalFormat tw = new DecimalFormat("0.000");
+
+		int m, n;
+		m = 13; n = 4;
+//		int L[]= {2, 1, 1, 2};
+		int L[]= {2, 2, 2, 2};
+
+		float Q[][] ={
+			{0.35f,0.80f,0.58f,0.35f},
+			{0.84f,0.85f,0.86f,0.36f},
+			{0.96f,0.51f,0.45f,0.64f},
+			{0.22f,0.33f,0.68f,0.33f},			
+			{0.49f,0.09f,0.33f,0.58f},
+			{0.38f,0.54f,0.72f,0.20f},
+			{0.91f,0.31f,0.34f,0.15f},
+			{0.85f,0.34f,0.43f,0.18f},
+			{0.44f,0.06f,0.66f,0.37f},
+			{0.74f,0.32f,0.36f,0.75f},
+			{0.08f,0.06f,0.83f,0.78f},
+			{0.64f,0.79f,0.29f,0.30f},
+			{0.61f,0.10f,0.74f,0.52f}
+			};
+    		int [][]C ={
+		{0, 1, 0,0,0,0,0,0,    0,0,0,0,0},
+		{1, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,0,1,0,0,    0,0,0,1,1},
+		{0, 0, 0,0,1,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},		
+		{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,1,0,0,0,    0,0,0,0,0},
+		{0, 0, 0,0,1,0,0,0,    0,0,0,0,0},		
+		};
+
+	
+	try {
+		BufferedWriter out = new BufferedWriter(new FileWriter("GRACCdata.txt"));
+		out.write ("m="+m+";\n"+"n="+n+";\n");
+		out.write ("L=[");
+		for (int j =0; j< n; j++)			out.write (""+L[j]+", ");		out.write ("];\n");
+		
+		out.write ("Q=#[\n");
+		for (int i =0; i< m; i++)
+		{
+			out.write (""+(i+1)+": [");
+			for (int j =0; j< n; j++)			out.write (Q[i][j]+", ");
+			out.write ("],\n");			
+		}
+		out.write ("]#;\n");
+		out.write ("AC=#[\n");
+		for (int i =0; i< m; i++)
+		{
+			out.write (""+(i+1)+": [");
+			for (int j =0; j< m; j++)			out.write (C[i][j]+", ");
+			out.write ("],\n");			
+		}
+		out.write ("]#;\n");
+		out.close();
+	}
+	catch (IOException e) {System.out.println ("Error in writing into a file!");
+	}
+			
+	System.out.println ("Before Assignment:");	System.out.println (m);	System.out.println (n);
+	System.out.println ("The Role Range Vector:");	for (int i =0; i<n; i++)		System.out.print (L[i]+" ");	System.out.println ();
+	System.out.println ("The Qualification  Matrix:");
+	for (int i = 0; i < m; i++)	{	for (int j =0; j< n; j++)		{		System.out.print (Q[i][j]);		System.out.print (" ");		}	System.out.println ();	}	System.out.println ();
+	System.out.println ("Conflict Agents:");
+	for (int i = 0; i < m; i++)	{	for (int j =0; j< m; j++)		{		System.out.print (C[i][j]);		System.out.print (" ");		}	System.out.println ();	}	System.out.println ();
+	
+	///////////////////End of Code for Conflict Resolution 
+	
+	TestResult tr = new TestResult();
+	float th = 0.0f;
+	long t1 = System.nanoTime();
+	int [][]T = new int [m][n];
+	float v = ConflictRatedAssign(L,  Q, C, T, m, n, th);
+//	float v = RatedAssign(L,  Q, T, m, n, th);
+	long t2 = System.nanoTime();
+	double diff = (double)(t2-t1)/1000000;
+	tr.time = diff;
+
+	System.out.println ("Threshold ="+th+" "+"Time = "+diff+"ms");
+	System.out.println ();
+	for (int i =0; i<n; i++)
+		System.out.print (L[i]+" ");		System.out.println ();	
+	System.out.println ("The Assignment Matrix:");
+	for (int i = 0; i < m; i++)
+	{	for (int j =0; j< n; j++)
+		{System.out.print (T[i][j]); System.out.print (" ");}	
+		System.out.println ();
+	}
+	System.out.println ();
+	for (int i = 0; i < m; i++)
+		{	for (int j =0; j< n; j++)
+			{
+			if (T[i][j]==1) 			System.out.print (Q[i][j]); else System.out.print ("0.00");	System.out.print (" ");	
+			} System.out.println ();
+		}
+		if (v>0) 
+		{	
+		System.out.println ("Success....\n After Assignment");
+		System.out.println ("Max G-Q = "+v);
+		System.out.println ();
+		tr.TF=true;
+		}
+		else 
+			{
+			System.out.println ("Fail...\n");
+			tr.TF = false;
+			}
+
+		return tr;
+}
+	public static void main(String[] args) {
+
+		int num =1;
+		TestResult []TR=new TestResult [num]; 
+		for (int i = 0; i<num; i++)
+		{	TR [i]=RandomTest();
+		}
+		for (int i = 0; i<num; i++)
+		{	if (TR[i].TF) System.out.print (1);
+		else System.out.print (0);
+		System.out.println (" "+TR[i].time);
+		}
+	}
+}
+

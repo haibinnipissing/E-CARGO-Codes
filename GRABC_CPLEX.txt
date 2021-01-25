@@ -1,0 +1,250 @@
+
+/*
+ * This package is used to solve GRA with Budget Constraints problem.
+ * Please cite:
+ * H. Zhu, “Maximizing Group Performance while Minimizing Budget,” IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 50, no. 2, Feb. 2020, pp. 633-645.
+*/
+
+import ilog.concert.*;
+import ilog.cplex.*;
+import java.text.DecimalFormat;
+import java.util.*;
+
+class TestResult
+{
+	public boolean TF;
+	public boolean TF1;
+	public double time;
+	public double time1;
+	public TestResult()
+	{
+		TF1=false;
+		time1 =0;
+		TF=false;
+		time =0;
+	}
+}
+
+class GRABC_ILOG {
+	
+	private int m;	//number of agents
+	private int n;	//number of roles
+	
+	public double[] Q, Q2;	//Qualification matrix
+	private int[][] A;  //Assignment array
+	
+	DecimalFormat df = new DecimalFormat("0.00");
+	
+	double optimized_result = 0;
+	boolean bILOG_result;
+	
+	public GRABC_ILOG(int nagent, int nrole, double[][] QM, double QM2[][], int L[], double w1)
+	{
+		m = nagent;
+		n = nrole;
+		
+		Q = new double[m*n];
+		for (int i=0; i<m; i++) // for each agent
+			for (int j = 0; j<n; j++)
+//				{Q[i*n+j] = QM[i][j]/QM2[i][j];}
+				{Q[i*n+j] = QM2[i][j]/QM[i][j];}
+
+//				{Q[i*n+j] = w1*QM[i][j]-(1-w1)*QM2[i][j];}
+			//	{Q[i*n+j] = 0.8*QM[i][j]-0.2*QM2[i][j];	}
+		//	{Q[i*n+j] = QM[i][j]/(QM2[i][j]*5);}
+		
+		A = new int [m][n];
+
+	}
+
+	public double resolve(int[][]TR, int [] L, int [] LA)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+
+			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+
+//			cplex.addMinimize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			//Add Constraint 1: SUM(T[i][j])=L[j];	
+			for (int j = 0; j<n; j++)
+			{
+				IloLinearNumExpr exprReqConstraint = cplex.linearNumExpr();
+				for (int i = 0; i<m; i++)
+					exprReqConstraint.addTerm(1, x[j+i*n]);
+				cplex.addEq(exprReqConstraint, L[j]);				
+			}
+			
+			//Constrain type 2: sum j=1 to n-1 T[i,j] <=1. 
+			
+			for (int i=0; i<m; i++) // for each agent
+			{
+				IloLinearNumExpr exprAgentLimitConstraint = cplex.linearNumExpr();
+				for (int j = 0; j<n; j++)
+					exprAgentLimitConstraint.addTerm(1, x[j+i*n]);
+				cplex.addLe(exprAgentLimitConstraint, LA[i]);				
+			}			
+			//Solve LP
+			//long t1 = System.nanoTime();
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();
+				
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();
+				System.out.println("m=" + m + "; n =" + n);
+				cplex.output().println("Num COL: " + ncols);
+				
+	//			cplex.output().println("Result Table: " );
+				
+//				for (int j=0; j<ncols; j++)
+				for (int j=0; j<m*n; j++)
+				{
+					A[j/n][j%n] = (int)val[j]; 
+					if (A[j/n][j%n]==1) System.out.println(Q[j] + " ");
+					TR[j/n][j%n] = A[j/n][j%n];
+					//System.out.print(val[j]+ "	");
+//					if ((j+1)%(n) == 0) {System.out.print("\n");}	
+				}
+
+
+				System.out.println();
+
+				//TR = A;
+				cplex.end();
+				
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+			//long t2 = System.nanoTime();
+			//time[0] = (t2-t1)/1000000;
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+		
+		
+		return(optimized_result);
+	}
+	
+	public double getOptimizedResult()
+	{
+		return optimized_result;
+		
+	}
+};
+
+public class GRABC {
+	 public static  void printDMatrix (double [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0.00");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+		 public static  void printIMatrix (int [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+
+	private static TestResult randamtest(int m, int n, double done) {
+		Random generator = new Random();
+		DecimalFormat df = new DecimalFormat("0.00");
+		TestResult tr = new TestResult();
+		int L[]={1,2,4,2};
+
+		double [][]Q={
+				{0.18,0.82,0.29,0.01},
+				{0.35,0.80,0.58,0.35},
+				{0.84,0.85,0.86,0.36},
+				{0.96,0.51,0.45,0.64},
+				{0.22,0.33,0.68,0.33},
+				{0.96,0.50,0.10,0.73},
+				{0.25,0.18,0.23,0.39},
+				{0.56,0.35,0.80,0.62},
+				{0.49,0.09,0.33,0.58},
+				{0.38,0.54,0.72,0.20},
+				{0.91,0.31,0.34,0.15},
+				{0.85,0.34,0.43,0.18},
+				{0.44,0.06,0.66,0.37}};
+		double [][]Q1={{1,	4,	2,	1},
+				{1,	4,	2,	2},
+				{4,	4,	4,	2},
+				{5,	3,	2,	3},
+				{1,	1,	3,	1},
+				{5,	2,	1,	3},
+				{2,	2,	2,	2},
+				{2,	1,	4,	3},
+				{2,	1,	1,	2},
+				{1,	2,	3,	1},
+				{5,	1,	1,	1},
+				{4,	1,	1,	1},
+				{2,	1,	3,	1}};
+		
+		double [][]Q2={{0.20,	0.80,	0.40,	0.20},
+					{0.20,	0.80,	0.40,	0.40},
+					{0.80,	0.80,	0.80,	0.40},
+					{1.00,	0.60,	0.40,	0.60},
+					{0.20,	0.20,	0.60,	0.20},
+					{1.00,	0.40,	0.20,	0.60},
+					{0.40,	0.40,	0.40,	0.40},
+					{0.40,	0.20,	0.80,	0.60},
+					{0.40,	0.20,	0.20,	0.40},
+					{0.20,	0.40,	0.60,	0.20},
+					{1.00,	0.20,	0.20,	0.20},
+					{0.80,	0.20,	0.20,	0.20},
+					{0.40,	0.20,	0.60,	0.20},};
+		double B [] = new double [m];
+		long t1 = System.nanoTime();
+		int T[][]=new int [m][n];
+		GRABC_ILOG ILOG = new GRABC_ILOG(m, n, Q, Q2, L, 0.5);
+		printDMatrix(Q, m, n);
+		int []LA={2,2,2,2,2,2,2,2,2,2,2,2,2};
+		double v3 = ILOG.resolve(T, L, LA);//bot =2, bot is the number limit for the role number for one agent.
+		long t2 = System.nanoTime();
+		double diff = (double)(t2-t1)/1000000;
+		tr.time = diff;
+		printIMatrix(T, m, n);
+
+		for (int j=0; j<n; j++)B[j]=0;
+		double v4 =0;
+		for (int j=0; j<n; j++)
+		{	for (int i=0; i<m; i++) {
+				if (1==T[i][j]) { 
+					B[j]+=T[i][j]*Q1[i][j];
+					v4+=Q[i][j];
+				}
+			}
+		}
+		double BT=0;
+		System.out.print("B[");
+		for (int j=0; j<n; j++) {
+			System.out.print(B[j]+", ");BT+=B[j];}
+		System.out.println("]="+BT);
+			
+		System.out.println ("Total ="+v4+" "+"Time = "+diff+"ms");
+		return tr;
+	}
+	
+	public static void main(String[] args)
+	{
+		DecimalFormat df = new DecimalFormat("0.00");
+		randamtest(13, 4, 0.90);
+	}	
+}

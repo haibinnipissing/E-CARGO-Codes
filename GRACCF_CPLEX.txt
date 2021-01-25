@@ -1,0 +1,378 @@
+/**
+ * An implementation of the Group Role Assignment with Cooperation and Conflict Factors;
+ * H. Zhu, Y. Sheng, X.-Z. Zhou, Y. Zhu, “Group Role Assignment with Cooperation and Conflict Factors”, 
+ * IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 48, no. 6, June 2018, pp. 851 – 863.
+ * @author Haibin Zhu, 2015
+ */
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.Random;
+
+import ilog.concert.*;
+import ilog.cplex.*;
+
+
+
+class TestResult
+{
+	public boolean TF;
+	public boolean TF1;
+	public double time;
+	public double time1;
+	public TestResult()
+	{
+		TF1=false;
+		time1 =0;
+		TF=false;
+		time =0;
+	}
+}
+
+
+class GRACCF_ILOG {
+	
+	private int m;	//number of agents
+	private int n;	//number of roles
+	private int nc;	//number of cooperation
+	
+	private double[] Q;	//Qualification matrix
+	private double[][] CCE;	//Cooperation matrix
+	private int[] L;	//Role Requirement array
+	private int[][] A;  //Assignment array
+	
+	DecimalFormat df = new DecimalFormat("0.00");
+	
+	double optimized_result = 0;
+	boolean bILOG_result;
+	
+	public GRACCF_ILOG(int nagent, int nrole, int ncoop, double[][] QM, int[]RA, double [][]CE)
+	{
+		m = nagent;
+		n = nrole;
+		nc = ncoop;
+		
+		Q = new double[m*n];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = QM[r][c]; i++; }
+		
+		L = new int[n];
+		for(int j=0; j<n; j++) {L[j] = RA[j]; }
+		
+		CCE = new double [nc][5];
+		for(int i=0; i<nc; i++) for(int j=0; j<5; j++) {CCE[i][j] = CE[i][j]; }
+		
+		A = new int[m][n];
+		for(int r=0; r<m; r++) for (int c=0; c<n; c++) A[r][c] = 0;
+		
+		}
+	private static int search (double [][]R, int i1, int i2, int i3, int i4, int n)
+	{
+		int i=0;
+		for ( i =0; i<n; i++)
+			if ((i1==(int)R[i][0])&&(i2==(int)R[i][1])&&(i2==(int)R[i][1])&&(i3==(int)R[i][3])) return i;
+		return -1;	
+	}
+
+	public double resolve(int[][]TR)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+			IloIntVar[]y = cplex.intVarArray(nc, 0, 1);	//initialize the variables array under cplex.
+			for (int k = 0; k<nc; k++){
+				{	for (int i =0; i<5; i++)
+					System.out.print(CCE[k][i]+ "	");
+				System.out.println();
+				}
+			}
+			double []QNC=new double [nc];
+			for (int k = 0; k<nc; k++){
+				QNC[k]=CCE[k][4]*Q[(int)(CCE[k][0]*n+CCE[k][1])];
+			}
+
+			cplex.addMaximize(cplex.sum(cplex.scalProd(x, Q), cplex.scalProd(y, QNC)));	//add the optimize objective to cplex.
+			//Add Constraint 1: SUM(T[i][j])<=L[j];	
+			for (int j = 0; j<n; j++)
+			{
+				IloLinearNumExpr exprReqConstraint = cplex.linearNumExpr();
+				for (int i = 0; i<m; i++)
+				{
+					exprReqConstraint.addTerm(1, x[j+i*n]);
+				}
+				cplex.addEq(exprReqConstraint, L[j]);				
+			}
+			
+			//Constrain type 2: sum j=1 to n-1 T[i,j] <=1. 
+			
+			for (int i=0; i<m; i++) // for each agent
+			{
+				IloLinearNumExpr exprAgentLimitConstraint = cplex.linearNumExpr();
+				for (int j = 0; j<n; j++)
+				{
+					exprAgentLimitConstraint.addTerm(1, x[j+i*n]);
+				}
+				cplex.addLe(exprAgentLimitConstraint, 1);				
+			}
+			//Constrain type 3:  2TT[i,j,i1,j1]<=T[i,j] +T[i1,j1]<=TT[i,j,i1,j1]+1. 
+			for (int k=0; k<nc; k++) // for each role
+			{
+				IloLinearNumExpr exprTConstraint = cplex.linearNumExpr();
+				exprTConstraint.addTerm(1, x[(int)CCE[k][0]*n+(int)CCE[k][1]]);
+				exprTConstraint.addTerm(1, x[(int)CCE[k][2]*n+(int)CCE[k][3]]);
+				exprTConstraint.addTerm(-1, y[k]);
+				cplex.addLe(exprTConstraint, 1);
+			}
+			for (int k=0; k<nc; k++) // for each role
+			{			
+				IloLinearNumExpr exprTConstraint1 = cplex.linearNumExpr();
+				exprTConstraint1.addTerm(1, x[(int)CCE[k][0]*n+(int)CCE[k][1]]);
+				exprTConstraint1.addTerm(1, x[(int)CCE[k][2]*n+(int)CCE[k][3]]);
+				exprTConstraint1.addTerm(-2, y[k]);
+				cplex.addGe(exprTConstraint1, 0);
+			}
+			//Solve LP
+			//long t1 = System.nanoTime();
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();
+				
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();
+				System.out.println("m=" + m + "; n ="+n);
+				cplex.output().println("Num COL: " + ncols);
+				
+				for (int j=0; j<m*n; j++)
+				{
+					A[j/n][j%n] = (int)(val[j]+0.0000001); //To avoid 0.999999996 become 0
+					if (A[j/n][j%n]==1) System.out.println(Q[j] + " ");
+					TR[j/n][j%n] = A[j/n][j%n];
+				}
+				double[] val1 = cplex.getValues(y);
+				double cnt =0;//Obtain the extra gain by the assignment.
+				for (int i = 0; i <nc; i++){
+					double ex=CCE[i][4]*
+					((int)val1[i])*
+					Q[(int)CCE[i][0]*n+(int)CCE[i][1]];
+					if (ex!=0) 		
+					{		System.out.println(CCE[i][0]+" "+ CCE[i][1]+" "
+															+CCE[i][2]+" "+CCE[i][3]+" " +ex+" ");
+					cnt +=ex;
+					}
+				}
+				System.out.println();
+				System.out.println("extra ="+ cnt);
+
+				cplex.end();
+				
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+		
+		return(optimized_result);
+	}
+	
+	public double getOptimizedResult()
+	{
+		return optimized_result;
+		
+	}
+};
+
+public class GRACCFNKM {
+	 public static  void printDMatrix (double [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0.00");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+		 public static  void printIMatrix (int [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+
+	private static TestResult randamtest(int m, int n, int nc) {
+		DecimalFormat df = new DecimalFormat("0.00");
+			
+		int L[]={1,2,4,2};
+		double [][]Q={
+				{0.18,0.82,0.29,0.01},
+				{0.35,0.80,0.58,0.35},
+				{0.84,0.85,0.86,0.36},
+				{0.96,0.51,0.45,0.64},
+				{0.22,0.33,0.68,0.33},
+				{0.96,0.50,0.10,0.73},
+				{0.25,0.18,0.23,0.39},
+				{0.56,0.35,0.80,0.62},
+				{0.49,0.09,0.33,0.58},
+				{0.38,0.54,0.72,0.20},
+				{0.91,0.31,0.34,0.15},
+				{0.85,0.34,0.43,0.18},
+				{0.44,0.06,0.66,0.37}};
+		
+		double [][]CCE={
+				{0, 1, 1, 1, -0.3}, 
+				{0, 1, 1, 2, 0.35}, 
+				{0, 1, 1, 3, 0.35}, 
+				{0, 1, 5, 0, -0.4}, 
+				{0, 1, 12, 2, 0.8}, 
+				{0, 1, 12, 3, 0.9}, 
+				{0, 2, 1, 1, -0.2}, 
+				{0, 2, 1, 2, -0.2}, 
+				{0, 2, 1, 3, 0.2}, 
+				{0, 2, 5, 0, -0.5}, 
+				
+				{0, 2, 12, 2, 0.5}, 
+				{0, 2, 12, 3, 0.6}, 
+				{1, 1, 0, 1, -0.2}, 
+				{1, 1, 0, 2, 0.2}, 
+				{1, 1, 4, 1, 0.2}, 
+				{1, 1, 4, 2, 0.2}, 
+				{1, 1, 4, 3, 0.3}, 
+				{1, 1, 11, 0, -0.3}, 
+				{1, 1, 11, 2, 0.35}, 
+				{1, 1, 12, 2, 0.7},
+				
+				{1, 1, 12, 3, 0.6}, 
+				{1, 2, 0, 1, -0.35}, 
+				{1, 2, 0, 2, -0.2}, 
+				{1, 2, 4, 1, 0.2}, 
+				{1, 2, 4, 2, 0.2}, 
+				{1, 2, 4, 3, 0.3}, 
+				{1, 2, 11, 0, -0.2}, 
+				{1, 2, 11, 2, -0.2}, 
+				{1, 3, 0, 1, 0.35}, 
+				{1, 3, 0, 2, 0.4}, 
+				
+				{1, 3, 4, 1, 0.2}, 
+				{1, 3, 4, 2, 0.2}, 
+				{1, 3, 4, 3, 0.2}, 
+				{1, 3, 11, 0, -0.3}, 
+				{1, 3, 11, 2, 0.35}, 
+				{4, 1, 1, 1, 0.2}, 
+				{4, 1, 1, 2, 0.2}, 
+				{4, 1, 1, 3, 0.3}, 
+				{4, 1, 5, 0, -0.5}, 
+				{4, 1, 5, 1, -0.4}, 
+				
+				{4, 1, 5, 3, -0.3}, 
+				{4, 1, 12, 2, 0.6}, 
+				{4, 1, 12, 3, 0.7}, 
+				{4, 2, 1, 1, 0.2}, 
+				{4, 2, 1, 2, 0.2}, 
+				{4, 2, 1, 3, 0.3}, 
+				{4, 2, 5, 0, -0.4}, 
+				{4, 2, 5, 1, -0.45}, 
+				{4, 2, 5, 3, -0.3}, 
+				{4, 3, 1, 1, 0.2}, 
+				
+				{4, 3, 1, 2, 0.2}, 
+				{4, 3, 1, 3, 0.2}, 
+				{4, 3, 5, 0, -0.2}, 
+				{4, 3, 5, 1, -0.2}, 
+				{4, 3, 5, 3, -0.3}, 
+				{5, 0, 4, 1, 0.3}, 
+				{5, 0, 4, 2, 0.2}, 
+				{5, 0, 4, 3, 0.3}, 
+				{5, 0, 12, 2, 0.8}, 
+				{5, 0, 12, 3, 0.7},
+				
+				{5, 1, 4, 1, -0.4}, 
+				{5, 1, 4, 2, -0.45}, 
+				{5, 1, 4, 3, -0.2}, 
+				{5, 1, 12, 2, 0.6}, 
+				{5, 1, 12, 3, 0.5}, 
+				{5, 3, 4, 1, -0.2}, 
+				{5, 3, 4, 2, -0.2}, 
+				{5, 3, 4, 3, -0.3}, 
+				{11, 0, 0, 1, 0.3}, 
+				{11, 0, 0, 2, 0.2}, 
+				
+				{11, 0, 1, 1, -0.3}, 
+				{11, 0, 1, 2, 0.35}, 
+				{11, 0, 1, 3, 0.35}, 
+				{11, 0, 4, 1, 0.3}, 
+				{11, 0, 4, 2, 0.2}, 
+				{11, 0, 4, 3, 0.1}, 
+				{11, 0, 5, 0, -0.5}, 
+				{11, 0, 5, 1, -0.4}, 
+				{11, 0, 5, 3, -0.3}, 
+				{11, 0, 12, 2, 0.7}, 
+				
+				{11, 0, 12, 3, 0.7}, 
+				{11, 2, 1, 1, -0.2}, 
+				{11, 2, 1, 2, -0.2}, 
+				{11, 2, 1, 3, 0.2}, 
+				{11, 2, 12, 2, 0.6}, 
+				{11, 2, 12, 3, 0.6}, 
+				{12, 2, 5, 0, -0.4}, 
+				{12, 2, 11, 0, 0.8}, 
+				{12, 2, 11, 2, 0.6}, 
+				{12, 3, 5, 0, -0.3}, 
+				
+				{12, 3, 11, 0, 0.8}, 
+				{12, 3, 11, 2, 0.6},
+		};
+		try 
+		{
+			BufferedWriter out = new BufferedWriter(new FileWriter(("Result"), true));
+			out.write("Q: \n");	// Random Q
+			for(int r=0; r<m; r++)
+			{
+				for(int c=0; c<n; c++)
+				{
+					out.write(df.format(Q[r][c]) + "	");
+				}
+				out.write("\n");
+			}
+			
+			out.write("\n");			
+			out.close();
+		}
+		catch (IOException e) {System.out.println ("Error in writing into a file!");}
+		//TEST parameters:
+		int[][] TR = new int[m][n];
+		
+		//Init ILOG and resolve
+		TestResult tr = new TestResult();
+		double v=0.0f;
+		
+		long t1 = System.nanoTime();
+		GRACCF_ILOG ILOG = new GRACCF_ILOG(m, n, nc, Q, L, CCE);
+		 v = ILOG.resolve(TR);
+		long t2 = System.nanoTime();
+		double diff = (double)(t2-t1)/1000000;
+		tr.time = diff;
+		System.out.println ("Total ="+v+" "+"Time = "+diff+"ms");
+		printIMatrix(TR, m, n);
+		
+		return tr;
+	}
+	
+	public static void main(String[] args)
+	{
+		randamtest(13, 4, 92);
+	}	
+}

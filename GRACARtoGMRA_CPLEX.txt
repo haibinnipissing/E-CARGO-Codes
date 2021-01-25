@@ -1,0 +1,729 @@
+/**
+ * This program is to transfer an GRACAR problem into an GMRA problem.
+ * @author Haibin Zhu, 2019
+ * Please cite:
+ * H. Zhu, “Group Multi-role Assignment with Conflicting Roles and Agents,” IEEE/CAA J. of Automatica Sinica, vol. 7, no. 6, Nov. 2020, pp. 1498-1510.
+ */
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.*;
+import java.lang.Integer;
+
+import ilog.concert.*;
+import ilog.cplex.*;
+
+
+import java.util.Iterator;
+import java.util.TreeSet;
+
+class GRACARP{
+	int m, n;
+	int T[][];
+	int L[];
+	int C[][];
+	double Q[][];
+	GRACARP(){
+		m=n=10;
+		T = new int [m][n];
+		Q = new double [m][n];
+		L = new int [n];
+		C=new int [m][m];
+	}
+	GRACARP(int m1, int n1, double Q1[][], int [][]C1, int []L1){
+		m=m1;
+		n=n1;;
+		T = new int [m][n];
+		Q = Q1;
+		L = L1;
+		C=C1;
+	}
+}
+
+class GMRA_ILOG {
+	
+	 int m;	//number of agents
+	 int n;	//number of roles
+	
+	 double[] Q;	//Qualification matrix
+	 int[] LA;	//Agent Limit
+	 int[] L;	//Role Requirement array
+	 int[][] A;  //Assignment array
+	
+	DecimalFormat df = new DecimalFormat("0.00");
+	
+	double optimized_result = 0;
+	boolean bILOG_result;
+	int ms;
+	int Ts[][];
+	double Qs[][];
+	Vector newA;
+	int [][] maxAs;
+
+	GMRA_ILOG(GRACARP P){
+		newA = new Vector();
+		n = P.n;
+		for (int i=0; i<P.m; i++)
+		{
+			Set s = new TreeSet();
+			s.add(new Integer (i));
+			for (int j =0; j<P.m;j++) if (P.C[i][j]==1) s.add(new Integer (j));
+			newA.add(s);
+		}
+		for (int ii=0; ii<newA.size()-1;ii++){
+				Set s1 = (TreeSet)newA.get(ii);
+				Set s11 = new TreeSet();
+				s11.addAll(s1);
+				for (int jj=ii+1; jj<newA.size();jj++)
+				{
+					Set s2 = (TreeSet)newA.get(jj);
+					s11.retainAll(s2);
+					if (!s11.isEmpty()) {
+						((TreeSet)s1).addAll(s2); 
+						newA.remove(jj);
+						jj--;
+					}
+					s11.addAll(s1);
+				}
+			}
+		ms=newA.size();
+		maxAs=new int [ms][n];
+		Ts = new int [ms][n];
+		Qs = new double [ms][n];
+		L = P.L;
+		LA= new int [ms];
+		for (int i =0; i< ms; i++) 
+			LA[i]=((TreeSet)newA.get(i)).size();
+		for (int j=0; j< n; j++) 
+			for (int i =0; i< ms; i++) {
+				double max=0;
+				Iterator iterate = ((TreeSet)newA.get(i)).iterator();
+				for (int k =0; k< ((TreeSet) newA.get(i)).size(); k++){
+					int index_a = ((Integer)iterate.next()).intValue();
+					double value=P.Q[index_a][j];
+					if (max < value){
+						max=value;
+						maxAs[i][j]=index_a;
+					};
+				}
+				Qs[i][j]=max;
+			};
+			m = ms;
+			
+			Q = new double[ms*n];
+			for(int i=0, r=0; r<ms; r++) for (int c=0; c<n; c++){Q[i] = Qs[r][c]; i++; }
+			
+			A = new int[m][n];
+			for(int r=0; r<m; r++) for (int c=0; c<n; c++) A[r][c] = 0;
+			
+			//LOG:
+			System.out.println("Qualification Matrix: ");
+			for (int i=0;i<ms*n;i++)
+			{
+				System.out.print(df.format(Q[i])+"	");
+				if ((i+1)%(n) == 0) System.out.print("\n");
+			}
+			System.out.print("\n");	
+			
+			System.out.println("Requirement Array: ");
+			for(int i=0; i<n; i++)
+			{
+				System.out.print(L[i]+"	");
+			}
+			System.out.print("\n");	
+			
+			System.out.println("Agent Limit Array: ");
+			for (int i=0; i<ms;i++)
+			{
+				System.out.print(LA[i]+"	");
+			}
+			System.out.print("\n");	
+	};
+	public GMRA_ILOG(int nagent, int nrole, double[][] QM, int[]RA, int[] AA)
+	{
+		m = nagent;
+		n = nrole;
+		
+		Q = new double[m*n];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = QM[r][c]; i++; }
+		
+		L = new int[n];
+		for(int j=0; j<n; j++) {L[j] = RA[j]; }
+		
+		LA = new int[m];
+		for(int i=0; i<m; i++) {LA[i] = AA[i]; }
+		
+		A = new int[m][n];
+		for(int r=0; r<m; r++) for (int c=0; c<n; c++) A[r][c] = 0;
+		
+		//LOG:
+		System.out.println("Qualification Matrix: ");
+		for (int i=0;i<m*n;i++)
+		{
+			System.out.print(df.format(Q[i])+"	");
+			if ((i+1)%(n) == 0) System.out.print("\n");
+			
+		}
+		System.out.print("\n");	
+		
+		System.out.println("Requirement Array: ");
+		for(int i=0; i<n; i++)
+		{
+			System.out.print(L[i]+"	");
+		}
+		System.out.print("\n");	
+		
+		System.out.println("Agent Limit Array: ");
+		for (int i=0; i<m;i++)
+		{
+			System.out.print(LA[i]+"	");
+		}
+		System.out.print("\n");	
+	}
+	
+	public double resolve(int[][]TR)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			
+			//Add Constraint 1: L[j];
+			
+			for (int j = 0; j<n; j++)
+			{
+				IloLinearNumExpr exprReqConstraint = cplex.linearNumExpr();
+				for (int i = 0; i<m; i++)
+				{
+					exprReqConstraint.addTerm(1, x[j+i*n]);
+				}
+				cplex.addEq(exprReqConstraint, L[j]);				
+			}
+			
+			//Constrain type 2: LA[i] The agent limit constrains. 
+			
+			for (int i=0; i<m; i++) // for each agent
+			{
+				IloLinearNumExpr exprAgentLimitConstraint = cplex.linearNumExpr();
+				for (int j = 0; j<n; j++)
+				{
+					exprAgentLimitConstraint.addTerm(1, x[j+i*n]);
+				}
+				cplex.addLe(exprAgentLimitConstraint, LA[i]);				
+			}
+						
+			//Solve LP
+			//long t1 = System.nanoTime();
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();
+				
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();
+				//cplex.output().println("Num COL: " + ncols);
+				
+				cplex.output().println("Result Table: " );
+				System.out.println("sigma="+optimized_result);
+				
+				for (int j=0; j<ncols; j++)
+				{
+					A[j/n][j%n] = (int)val[j]; 
+					System.out.print(A[j/n][j%n] + " ");
+					TR[j/n][j%n] = A[j/n][j%n];
+					//System.out.print(val[j]+ "	");
+					if ((j+1)%(n) == 0) {System.out.print("\n");}	
+				}
+				//TR = A;
+				cplex.end();
+				
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+			//long t2 = System.nanoTime();
+			//time[0] = (t2-t1)/1000000;
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+
+		
+		return(optimized_result);
+	}
+	
+	public double getOptimizedResult()
+	{
+		return optimized_result;
+		
+	}
+};
+
+	
+class GRACAR_ILOG {
+	private int m;	//number of agents
+	private int n;	//number of roles
+	private double[] Q;	//Qualification matrix
+	private int[] C;		//Conflict matrix
+	private int[] L;	//Requirement array
+	private int[][] A;  //Assignment array
+	
+	DecimalFormat df = new DecimalFormat("0.00");
+	
+	double optimized_result = 0;
+	boolean bILOG_result;
+	
+	public GRACAR_ILOG(int nagent, int nrole, double[][] QM, int[][] CM, int[]RA)
+	{
+		m = nagent;
+		n = nrole;
+		
+		Q = new double[m*n];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = QM[r][c]; i++; }
+		
+		C = new int[m*m];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<m; c++){C[i] = CM[r][c]; i++; }
+		
+		L = new int[n];
+		L = RA;
+		
+		A = new int[m][n];
+		for(int r=0; r<m; r++) for (int c=0; c<n; c++) A[r][c] = 0;
+		
+		//LOG:
+		System.out.println("Qualification Matrix: ");
+		for (int i=0;i<m*n;i++)
+		{
+			System.out.print(df.format(Q[i])+"	");
+			if ((i+1)%(n) == 0) System.out.print("\n");
+			
+		}
+		System.out.print("\n");	
+		
+		System.out.println("Requirement Array: ");
+		for(int i=0; i<n; i++)
+		{
+			System.out.print(L[i]+"	");
+		}
+		System.out.print("\n");	
+		
+		System.out.println("Conflict Matrix: ");
+		for (int i=0; i<m*m;i++)
+		{
+			System.out.print(C[i]+" ");
+			if ((i+1)%m == 0) System.out.print("\n");	
+		}
+		System.out.print("\n");	
+	}
+	
+	public double resolveGRA(int[][]TR)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+			
+			//cplex.addMinimize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			
+			//Add Constrains:
+			
+			//Constrain type 1: unique constrains here, one person can only be assigned on one role at one time, 
+			//thus there are number of 'm' constrains here need to be inserted into the cplex obj.
+			for(int i=0; i<m; i++)
+			{
+				IloLinearNumExpr exprUniConstrain = cplex.linearNumExpr();
+				for(int j = 0; j<n; j++)
+				{
+					exprUniConstrain.addTerm(1, x[n*i+j]);
+				}
+				cplex.addLe(exprUniConstrain, 1.0);
+				
+			}
+
+			
+			//Constrain type 2: Add role requirement constrains, 
+			//the number of people assigned on each role should meet the requirement on that role.
+			//Hence, n constrains will be added.
+			
+			for (int i = 0; i<n; i++)
+			{
+				IloLinearNumExpr exprReqConstrain = cplex.linearNumExpr();
+				for (int j = 0; j<m; j++)
+				{
+				exprReqConstrain.addTerm(1, x[i+j*n]);
+				}
+				cplex.addEq(exprReqConstrain, L[i]);
+			}
+			//Solve LP
+			//long t1 = System.nanoTime();
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();
+				//cplex.output().println("Solution status = " + cplex.getStatus());
+				//cplex.output().println("Solution value = " + cplex.getObjValue());
+				
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();
+				//cplex.output().println("Num COL: " + ncols);
+				
+				cplex.output().println("Result Table: " );
+				for (int j=0; j<ncols; j++)
+				{
+					A[j/n][j%n] = (int)val[j]; 
+					System.out.print(A[j/n][j%n] + " ");
+					TR[j/n][j%n] = A[j/n][j%n];
+					//System.out.print(val[j]+ "	");
+					if ((j+1)%(n) == 0) {System.out.print("\n");}	
+				}
+				//TR = A;
+				cplex.end();
+				
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+			//long t2 = System.nanoTime();
+			//time[0] = (t2-t1)/1000000;
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+		return(optimized_result);
+	}
+	
+	public double resolve(int[][]TR)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+			//cplex.addMinimize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			
+			//Add Constrains:
+			
+			//Constrain type 1: unique constrains here, one person can only be assigned on one role at one time, 
+			//thus there are number of 'm' constrains here need to be inserted into the cplex obj.
+			for(int i=0; i<m; i++)
+			{
+				IloLinearNumExpr exprUniConstrain = cplex.linearNumExpr();
+				for(int j = 0; j<n; j++)
+				{
+					exprUniConstrain.addTerm(1, x[n*i+j]);
+				}
+				cplex.addLe(exprUniConstrain, 1.0);
+				
+			}
+
+			
+			//Constrain type 2: Add role requirement constrains, 
+			//the number of people assigned on each role should meet the requirement on that role.
+			//Hence, n constrains will be added.
+			
+			for (int i = 0; i<n; i++)
+			{
+				IloLinearNumExpr exprReqConstrain = cplex.linearNumExpr();
+				for (int j = 0; j<m; j++)
+				{
+				exprReqConstrain.addTerm(1, x[i+j*n]);
+				}
+				cplex.addEq(exprReqConstrain, L[i]);
+				
+			}
+			
+			//Constrain type 3: The conflict constrains. 
+			//On each role which require more than one people, all the constrains may occur on that role should be added
+			
+			//Constrain type 3: The conflict constrains. 
+			for (int r=0; r<n; r++) // Scan the cost matrix by column
+			{
+				if ( 1 < L[r] )
+				{
+					//Find out all the index of x on that column
+					int index[] = new int[m]; //number of person
+					int indexcounter = 0;
+					for(int i=0; i<m*n; i++)
+					{
+						if(i%n==r)
+						{ 	
+							index[indexcounter]=i;
+							indexcounter++;
+						}
+					}
+					//Add conflicts constrains on that role. 
+					for(int i=0; i<m*m; i++) //i size of the conflict chart
+					{
+						int row = i/m; 
+						int col = i%m; 
+						if (1 == C[i])
+						{
+							IloLinearNumExpr conflict = cplex.linearNumExpr();
+							conflict.addTerm(1, x[index[col]]);
+							conflict.addTerm(1, x[index[row]]);
+							cplex.addLe(conflict, 1);
+						}
+					}
+				}
+			}
+			
+			
+			//Solve LP
+			//long t1 = System.nanoTime();
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();
+				//cplex.output().println("Solution status = " + cplex.getStatus());
+				//cplex.output().println("Solution value = " + cplex.getObjValue());
+				
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();
+				//cplex.output().println("Num COL: " + ncols);
+				
+				cplex.output().println("Result Table: " );
+				for (int j=0; j<ncols; j++)
+				{
+					A[j/n][j%n] = (int)val[j]; 
+					System.out.print(A[j/n][j%n] + " ");
+					TR[j/n][j%n] = A[j/n][j%n];
+					//System.out.print(val[j]+ "	");
+					if ((j+1)%(n) == 0) {System.out.print("\n");}	
+				}
+				//TR = A;
+				cplex.end();
+				
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+			//long t2 = System.nanoTime();
+			//time[0] = (t2-t1)/1000000;
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+		
+		
+		return(optimized_result);
+	}
+	
+	public double getOptimizedResult()
+	{
+		return optimized_result;
+		
+	}
+}
+
+public class GRACARtoGMRA {
+	 public static  void printDMatrix (double [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0.00");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+		 public static  void printIMatrix (int [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+
+		 public static int sigmaL(int []L){
+			 int total=0;
+			 for(int j=0; j<L.length; j++) 
+				 total+=L[j];
+			 return total;
+		 }
+		 public static void GetAssignment (int m, int n, int [][]T, int [][]T1, GMRA_ILOG gmra){
+			 for (int j =0; j < n; j++){
+				 for (int i =0; i< gmra.ms; i++){
+					 int ii = 0;
+					 do{
+						 TreeSet a = (TreeSet) gmra.newA.get(i);
+						 if (a.contains (new Integer(ii)) && (T[ii][j]==1)) 
+				    	 	T1[i][j] =1;
+						 ii++;
+					 } while (ii<m);
+				 } 
+			 }
+		 }
+
+		 public static void GetGRACARAssignment (int m, int n, int [][]T, int [][]T1, GMRA_ILOG gmra){			 
+			
+			 for (int j =0; j < n; j++)
+				 for (int i =0; i< m; i++) T[i][j]=0;
+			
+			 for (int j =0; j < n; j++){
+				 for (int i =0; i< gmra.ms; i++){
+					 int ii = 0;
+					 TreeSet a = (TreeSet) gmra.newA.get(i);
+					 while (ii<m)
+					 {
+						if (a.contains (new Integer(ii)) && (T1[i][j]==1)){ 
+				    	 	T[ii][j] =1;
+				    	 	T1[i][j]=0;
+				    	 	a.remove (new Integer(ii));
+					 	}
+						ii++;
+					 } ;
+				 } 
+			 }
+		 }
+		 
+	public static void main(String[] args)
+	{
+		Random generator = new Random();
+		DecimalFormat df = new DecimalFormat("0.00");
+//		int m = 500, n = 100; 
+//		int []L=new int [n];
+//		double [][]Q=new double [m][n];
+		double probability =0.3;
+		int m = 13;
+		int n =4;
+//		int [][]C=new int [m][m];
+		int [][]C ={
+				{0, 1, 0,0,0,0,0,0,    0,0,0,0,0},
+				{1, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,1,0,0,    0,0,0,1,1},
+				{0, 0, 0,0,1,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,0,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,1,0,0,0,    0,0,0,0,0},
+				{0, 0, 0,0,1,0,0,0,    0,0,0,0,0},		
+				};
+		printIMatrix(C, m, m);
+		int L[]={1,2,4,2};
+		double [][]Q={
+				{0.18,0.82,0.29,0.01},
+				{0.35,0.80,0.58,0.35},
+				{0.84,0.85,0.86,0.36},
+				{0.96,0.51,0.45,0.64},
+				{0.22,0.33,0.68,0.33},
+				{0.96,0.50,0.10,0.73},
+				{0.25,0.18,0.23,0.39},
+				{0.56,0.35,0.80,0.62},
+				{0.49,0.09,0.33,0.58},
+				{0.38,0.54,0.72,0.20},
+				{0.91,0.31,0.34,0.15},
+				{0.85,0.34,0.43,0.18},
+				{0.44,0.06,0.66,0.37}};
+		try 
+		{
+			BufferedWriter out = new BufferedWriter(new FileWriter(("Result"), true));
+			out.write("Q: \n");	// Random Q
+			for(int r=0; r<m; r++)
+			{
+				for(int c=0; c<n; c++)
+				{
+		//			Q[r][c] = generator.nextDouble();
+					out.write(df.format(Q[r][c]) + "	");
+				}
+				out.write("\n");
+			}			
+			out.write("\n");
+			
+			// Random C
+			for(int i = (m-1); i>=0; i--) //Init
+			{
+				for(int j = 0; j<=i; j++  )
+				{
+					int signal;
+					if (i==j) signal=0;
+					 else if (generator.nextDouble() <= probability) signal = 1;
+					        else signal = 0;
+			//		C[i][j] = signal;
+			//		C[j][i] = C[i][j];
+				}
+			}
+			out.write("\nC: \n");	//Log C
+			for(int r=0; r<m; r++)
+			{
+				for(int c=0; c<m; c++)
+				{
+					out.write(C[r][c] + "	");
+				}
+				out.write("\n");
+			}
+			out.write("\nL: \n");	//Random L
+			for (int i =0; i<n; i++) 	
+			{ 	
+			//	L[i] = generator.nextInt(m/n)+1;
+				out.write(L[i] + "	");
+			}
+			out.write("\n");
+			out.close();
+		}
+		catch (IOException e) {System.out.println ("Error in writing into a file!");}
+		//TEST parameters:
+		int[][] T = new int[m][n];
+		long t11 = System.nanoTime();
+		//Init ILOG and resolve
+		GRACAR_ILOG ILOG = new GRACAR_ILOG(m, n, Q, C, L);
+		double v1 = ILOG.resolve(T);//ILOG.resolve(TR, time);
+		
+		long t12 = System.nanoTime();
+		double diff1 = (double)(t12-t11)/1000000;
+		printDMatrix (Q, m, n);
+		printIMatrix (T, m, n);
+		System.out.print("L=[");	
+		for (int j=0; j<n; j++) {System.out.print(L[j]+" ");}	System.out.println("]");
+		System.out.println ("Total GRACAR ="+v1+" "+"Time = "+diff1+"ms");
+		System.out.println();
+
+/*		GRACARP gracar = new GRACARP(m, n, Q, C, L);
+		GMRA_ILOG gmra = new GMRA_ILOG(gracar);
+		int[][] T1 = new int[gmra.ms][n];
+
+		GetAssignment (m, n, T, T1, gmra);
+		printIMatrix (T1, gmra.ms, n);
+*/
+		long t21 = System.nanoTime();
+		GRACARP gracar = new GRACARP(m, n, Q, C, L);
+		GMRA_ILOG gmra = new GMRA_ILOG(gracar);
+		int[][] T1 = new int[gmra.ms][n];
+		double v2 = gmra.resolve(T1);//ILOG.resolve(TR, time);
+		
+		long t22 = System.nanoTime();
+		double diff2 = (double)(t22-t21)/1000000;
+		printDMatrix (Q, m, n);
+		printIMatrix (T1, gmra.ms, n);
+		System.out.print("L=[");	
+		for (int j=0; j<n; j++) {System.out.print(L[j]+" ");}	System.out.println("]");
+		System.out.print("LA=[");	
+		for (int i=0; i<gmra.ms; i++) {System.out.print(gmra.LA[i] +" ");}	System.out.println("]");
+		System.out.println ("Total GMRA ="+v2+" "+"Time = "+diff2+"ms");
+		System.out.println();
+	
+		GetGRACARAssignment (m, n, T, T1, gmra);
+		printIMatrix (T, m, n);
+		
+		return;
+	}	
+}
+
+

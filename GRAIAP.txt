@@ -1,0 +1,339 @@
+/*
+ *This package is used to Group Role Assignment with Agents' Prefernces (GRAIAP) problem.
+ *Adopted from an implementation of Hungarian algorithm (Unkown Author).
+ *Author: Dr. Haibin Zhu, 2017
+ *Please cite:
+ *H. Zhu, H. Ma, and H. Zhang, “Acquire the Preferred Position in a Team,” The IEEE Conf. of Computer-Supported Cooperative Work in Design, Nanjing, China, May 9-11, 2018, pp. 116-121.
+ **/
+import static java.util.Arrays.*;
+import static java.lang.Math.*;
+
+import java.text.DecimalFormat;
+import java.util.*;
+
+class TestResult
+{
+	public double v1, v4, v5, v6, lam1, lam2;
+	int sigmaL;
+	public TestResult()
+	{
+		v1=v4=v5=v6=lam1=lam2=0;
+	}
+};
+
+public class GRAIAP {
+    public final static int INF = (int) 1E9;
+    public final static double EPS = 1E-9;
+	public static  void printDMatrix (double [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0.00");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+	 public static  void printIMatrix (int [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+
+	public static void main(String cmdLine[]) {
+			Random generator = new Random();
+			DecimalFormat df = new DecimalFormat("0.00");
+			TestResult [] tr = new TestResult [100];
+			int m, n;
+			double max_lam1[] = new double [20];
+			double max_lam2[] = new double [20];
+			double ave_lam1[] = new double [20];
+			double ave_lam2[] = new double [20];
+			double min_lam1[] = new double [20];
+			double min_lam2[] = new double [20];
+			for (m =10; m <=200; m =m+10){
+				n = m/5;
+				max_lam1[m/10-1]=0;
+				max_lam2[m/10-1]=0;
+				min_lam1[m/10-1]=10000;
+				min_lam2[m/10-1]=10000;
+				ave_lam1[m/10-1]=0;
+				ave_lam2[m/10-1]=0;
+				//			int m = 50, n = 10;
+				double suml1=0, suml2=0;
+		for (int t =0; t<100;t++){
+//			int t=0;
+			tr[t]=new TestResult();
+//			int m = 13, n = 4; 
+			double [][]Q=new double [m][n];
+			int L[]=new int [n];
+			int sigmaL=0;
+   			for (int j =0; j<n; j++) 	{ 	L[j]=generator.nextInt(m/n)+1;
+   				sigmaL+=L[j];
+   			}
+			int [][]P=new int [m][n];
+    		for(int r=0; r<m; r++)
+    			for(int c=0; c<n; c++) {
+    				Q[r][c]=generator.nextDouble();
+    				P[r][c]=0;
+    			}
+
+			for (int p=1; p<=n; p++)
+			{
+				for(int r=0; r<m; r++){
+					int index_j = generator.nextInt(n);
+//					if ((index_j<0) ||index_j>n) System.out.println("Random generation error!");
+					int pos=index_j;
+					if (P[r][pos]==0) {P[r][pos] = p;}
+					else {
+						while ((P[r][pos] != 0) && (pos<n-1))
+							pos++;
+						if (P[r][pos]==0) {P[r][pos] = p;}
+						else {  pos=0;
+							while ((P[r][pos] != 0)&&(pos<index_j-1)) pos++;
+							if (P[r][pos]==0) {P[r][pos] = p;}
+							else System.out.println("Error in Creating the P matrix!"+r+" "+index_j+" " +pos+" "+ p);
+						}
+					}
+				}
+			}
+			double [][]PP=new double [m][n];
+    		for(int r=0; r<m; r++)
+    			for(int c=0; c<n; c++) {
+    				if (n<10){
+    				if (P[r][c]==1) PP[r][c]=0.95 + generator.nextDouble() /20;
+    				else	PP[r][c]=-0.05+(1-(P[r][c]-1)*0.1) + generator.nextDouble() /10;
+    				}
+    				else {
+        				if (P[r][c]==1) PP[r][c]=1.0/(2*n) + generator.nextDouble() /(n*2);
+        				else	PP[r][c]=-1/(2*n)+(1-(P[r][c]-1)*1/n) + generator.nextDouble()/n;    					
+    				}
+    			};
+  //  			/
+//			printDMatrix(PP, m, n);
+			
+				int [][]T=new int [m][n];
+				tr[t].v1=RatedAssign(L, Q, T, m, n, 0);
+//				printIMatrix(T, m, n);
+//				System.out.println("Original Team Performance ="+tr[t].v1);
+
+				double [][]Q2=new double [m][n];
+				
+				for (int i = 0; i<m; i++)
+				 	for (int j = 0; j<n; j++){
+				 			Q2[i][j]=Q[i][j]*PP[i][j];
+				 	}
+//				printDMatrix(Q2, m, n);
+				int [][]T1=new int [m][n];
+				double v2=RatedAssign(L, Q2, T1, m, n, 0);
+				
+				for (int i = 0; i<m; i++)
+				 	for (int j = 0; j<n; j++)
+				 		tr[t].v4 += Q[i][j]*T1[i][j];
+//				printIMatrix(T1, m, n);
+
+				for (int i = 0; i<m; i++)
+				 	for (int j = 0; j<n; j++)
+				 		tr[t].v5 += Q[i][j]*PP[i][j]*T[i][j];
+
+				for (int i = 0; i<m; i++)
+				 	for (int j = 0; j<n; j++)
+						tr[t].v6 += Q[i][j]*PP[i][j]*T1[i][j];
+				tr[t].lam1=tr[t].v4/tr[t].v1;
+				tr[t].lam2=(tr[t].v6-tr[t].v5)/tr[t].v5;
+				if (max_lam1[m/10-1]<tr[t].lam1) max_lam1[m/10-1]=tr[t].lam1;
+				if (max_lam2[m/10-1]<tr[t].lam2) max_lam2[m/10-1]=tr[t].lam2;
+				if (min_lam1[m/10-1]>tr[t].lam1) min_lam1[m/10-1]=tr[t].lam1;
+				if (min_lam2[m/10-1]>tr[t].lam2) min_lam2[m/10-1]=tr[t].lam2;
+				suml1+=tr[t].lam1;
+				suml2+=tr[t].lam2;
+			}
+			ave_lam1[m/10-1]=suml1/100;
+			ave_lam2[m/10-1]=suml2/100;		
+			System.out.println(m+" "
+					+df.format(max_lam1[m/10-1])+" "
+					+df.format(ave_lam1[m/10-1])+" "
+					+df.format(min_lam1[m/10-1])+" "
+					+df.format(max_lam2[m/10-1])+" "
+					+df.format(ave_lam2[m/10-1])+" "
+					+df.format(min_lam2[m/10-1])
+					);	
+		}
+	}
+
+	
+	public static int BWL(int [] L, double [][] Q, int [][]WL, int [][]T, int m, int n, int k) {
+		int resultIndex=-1;
+		double [][]Q1=new double [m][n];
+		for (int i = 0; i < m; i++) for (int j =0; j< n; j++) 		Q1[i][j]=Q[i][j];
+		for (int wli=0; wli<WL.length; wli++) {
+			for (int j =0; j< n; j++) 		Q1[k][j]=Q[k][j]*WL[wli][j];
+			int [][] TT =new int[m][n];
+			RatedAssign(L, Q1, TT, m, n, 0);
+			for (int j =0; j< n; j++) 
+				if (TT[k][j]==1) {
+				resultIndex = wli; 
+				for (int i = 0; i < m; i++) for (int j1 =0; j1< n; j1++) 		T[i][j1]=TT[i][j1];
+				return resultIndex;
+				}
+		}
+		return resultIndex;
+	}
+    
+	public static double RatedAssign(int [] L,  double [][] Q, int [][] T, int m, int n, double th) {
+		double v=0.0f;
+		int cnt=0, LL[]=new int [m];
+		double Q1[][]= new double [m][n];
+		//Check if it can be a square matrix.
+		for (int i = 0; i<n; i++) cnt +=L[i];
+		if (cnt > m) return 0.0f;//Not enough agents.
+		//Adjust Q with the threshold.
+		for (int i = 0; i < m; i++) for (int j =0; j< n; j++) 		if (Q[i][j]<=th) Q1[i][j]=-m*m;	else Q1[i][j]=Q[i][j];
+		double CC[]= new double [n]; //		CC[] is the numbers of qualified agents for roles.
+		int D[]= new int [n];		//D is a vector for the difference between the number required current agents and the number of actual current agents for each role.   
+		for (int j =0; j< n; j++)
+		{	for (int i = 0; i < m; i++)			{		if (Q1[i][j]>th)	 CC[j]=CC[j]+1;			}
+			D[j]=(int)( L[j]-CC[j]);		if (D[j]>0) return 0.0f;//One role has not enough agents..
+		}
+		//Create the index vector.
+		int index=0;
+		for (int j = 0; j<n; j++)	for (int k = 0; k<L[j]; k++) LL[index++] =j;
+		for (int k = index; k < m; k++)		LL[k]=n;//fill the left columns (roles).
+		int [][] M = new int [m][m];
+		for (int i = 0; i<m; i++)
+		{ 	index =0;
+			for (int j = 0; j<n; j++)
+				for (int k = 0; k<L[j]; k++)					
+					M[i][index++]=(int)(100*Q1[i][j]);//Precision is 0.00. If a better precision is needed, *1000, or *10000.
+		}
+		int [] N = hungarianMethod(M);
+		//Obtaing the matrix T.
+		for (int i = 0; i<m; i++) 	for (int j = 0; j<n; j++)	T[i][j]=0;
+		for (int j = 0; j < N.length; j++){
+			if (N[j]==-1) break;
+			if (LL[j]< n)
+				if (Q1[N[j]][LL[j]]>0) T[N[j]][LL[j]]=1;
+				else return -1.0f;
+		}
+		for (int i = 0; i<m; i++)
+		 	for (int j = 0; j<n; j++)
+				v += Q[i][j]*T[i][j];
+		return v;
+	}
+
+    public static int[] hungarianMethod(int w[][]) {
+        final int n = w.length, m = w[0].length, PHI = -1, NOL = -2;
+        boolean[] x[] = new boolean[n][m], ss = new boolean[n], st = new boolean[m];
+        int[] u = new int[n], v = new int[m], p = new int[m], ls = new int[n], lt = new int[m], a = new int[n];
+        int f = 0;
+
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < m; j++)
+                f = max(f, w[i][j]);
+
+        fill(u, f);
+        fill(p, INF);
+        fill(lt, NOL);
+        fill(ls, PHI);
+        fill(a, -1);
+
+        while (true) {
+            f = -1;
+            for (int i = 0; i < n && f == -1; i++)
+                if (ls[i] != NOL && !ss[i])
+                    f = i;
+
+            if (f != -1) {
+                ss[f] = true;
+                for (int j = 0; j < m; j++)
+                    if (!x[f][j] && u[f] + v[j] - w[f][j] < p[j]) {
+                        lt[j] = f;
+                        p[j] = u[f] + v[j] - w[f][j];
+                    }
+            } else {
+                for (int i = 0; i < m && f == -1; i++)
+                    if (lt[i] != NOL && !st[i] && p[i] == 0)
+                        f = i;
+
+                if (f == -1) {
+                    int d1 = INF, d2 = INF, d;
+                    for (int i : u)
+                        d1 = min(d1, i);
+
+                    for (int i : p)
+                        if (i > 0)
+                            d2 = min(d2, i);
+
+                    d = min(d1, d2);
+
+                    for (int i = 0; i < n; i++)
+                        if (ls[i] != NOL)
+                            u[i] -= d;
+
+                    for (int i = 0; i < m; i++) {
+                        if (p[i] == 0)
+                            v[i] += d;
+                        if (p[i] > 0 && lt[i] != NOL)
+                            p[i] -= d;
+                    }
+
+                    if (d2 >= d1)
+                        break;
+                } else {
+                    st[f] = true;
+                    int s = -1;
+
+                    for (int i = 0; i < n && s == -1; i++)
+                        if (x[i][f])
+                            s = i;
+
+                    if (s == -1) {
+                        for (int l, r; ; f = r) {
+                            r = f;
+                            l = lt[r];
+
+                            if (r >= 0 && l >= 0)
+                                x[l][r] = !x[l][r];
+                            else
+                                break;
+
+                            r = ls[l];
+                            if (r >= 0 && l >= 0)
+                                x[l][r] = !x[l][r];
+                            else
+                                break;
+                        }
+
+                        fill(p, INF);
+                        fill(lt, NOL);
+                        fill(ls, NOL);
+                        fill(ss, false);
+                        fill(st, false);
+
+                        for (int i = 0; i < n; i++) {
+                            boolean ex = true;
+                            for (int j = 0; j < m && ex; j++)
+                                ex = !x[i][j];
+                            if (ex)
+                                ls[i] = PHI;
+                        }
+                    } else
+                        ls[s] = f;
+                }
+            }
+        }
+
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < m; j++)
+                if (x[i][j])
+                    a[j] = i;
+        return a;
+    }
+}

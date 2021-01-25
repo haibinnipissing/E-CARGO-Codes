@@ -1,0 +1,278 @@
+/**
+ * A CPLEX implementation of the (Weighted) Group Role Assignment;
+ * @author Haibin Zhu, implemented 2016, revised 2020.
+ * Please cite:
+ * [1]	H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ * [2]  H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, 2006, pp. 578-589.  
+ */
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.*;
+import java.lang.Integer;
+
+import ilog.concert.*;
+import ilog.cplex.*;
+
+
+ class GRA_ILOG {
+	private int m;	//number of agents
+	private int n;	//number of roles
+	private double[] Q;	//Qualification matrix
+	private int[] L;	//Requirement array
+	private int[][] A;  //Assignment array
+	
+	DecimalFormat df = new DecimalFormat("0.00");
+	
+	double optimized_result = 0;
+	boolean bILOG_result;
+	
+	public GRA_ILOG(int nagent, int nrole, double[][] QM, int[]RA)
+	{
+		m = nagent;
+		n = nrole;
+		
+		Q = new double[m*n];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = QM[r][c]; i++; }
+		
+		L = new int[n];
+		L = RA;
+		
+		A = new int[m][n];
+		for(int r=0; r<m; r++) for (int c=0; c<n; c++) A[r][c] = 0;
+		
+		//LOG:
+		System.out.println("Qualification Matrix: ");
+		for (int i=0;i<m*n;i++)
+		{
+			System.out.print(df.format(Q[i])+"	");
+			if ((i+1)%(n) == 0) System.out.print("\n");
+			
+		}
+		System.out.print("\n");	
+		
+		System.out.println("Requirement Array: ");
+		for(int i=0; i<n; i++)
+		{
+			System.out.print(L[i]+"	");
+		}
+		System.out.print("\n");	
+	}
+	
+	public double resolve(int[][]TR)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+			
+			//cplex.addMinimize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			
+			//Add Constrains:
+			
+			//Constrain type 1: unique constrains here, one person can only be assigned on one role at one time, 
+			//thus there are number of 'm' constrains here need to be inserted into the cplex obj.
+			for(int i=0; i<m; i++)
+			{
+				IloLinearNumExpr exprUniConstrain = cplex.linearNumExpr();
+				for(int j = 0; j<n; j++)
+				{
+					exprUniConstrain.addTerm(1, x[n*i+j]);
+				}
+				cplex.addLe(exprUniConstrain, 1.0);
+				
+			}
+			//Constrain type 2: Add role requirement constrains, 
+			//the number of people assigned on each role should meet the requirement on that role.
+			//Hence, n constrains will be added.
+			
+			for (int i = 0; i<n; i++)
+			{
+				IloLinearNumExpr exprReqConstrain = cplex.linearNumExpr();
+				for (int j = 0; j<m; j++)
+				{
+				exprReqConstrain.addTerm(1, x[i+j*n]);
+				}
+				cplex.addEq(exprReqConstrain, L[i]);			//GRA	
+//				cplex.addGe(exprReqConstrain, L[i]);			//GRA+	
+			}
+			
+			//Solve LP
+			//long t1 = System.nanoTime();
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();
+				
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();
+				//cplex.output().println("Num COL: " + ncols);
+				
+				cplex.output().println("Result Table: " );
+				for (int j=0; j<ncols; j++)
+				{
+					A[j/n][j%n] = (int)val[j]; 
+					System.out.print(A[j/n][j%n] + " ");
+					TR[j/n][j%n] = A[j/n][j%n];
+					//System.out.print(val[j]+ "	");
+					if ((j+1)%(n) == 0) {System.out.print("\n");}	
+				}
+				cplex.end();
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+		
+		
+		return(optimized_result);
+	}
+	
+	public double getOptimizedResult()
+	{
+		return optimized_result;
+		
+	}
+}
+
+public class GRACPLEX {
+	 public static  void printDMatrix (double [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0.00");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+		 public static  void printIMatrix (int [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+
+public static int sigmaL(int []L){
+	int total=0;
+	for(int j=0; j<L.length; j++) 
+		total+=L[j];
+	return total;
+}
+public static void getWQ(int m, int n, double [][]Q, double [][]WQ, int []W)
+{
+double maxQ=1;
+for(int r=0; r<m; r++)
+{
+	for(int c=0; c<n; c++)
+	{
+		WQ[r][c] = Q[r][c]*W[c];
+		if (WQ[r][c]>maxQ) maxQ= WQ[r][c];
+	}
+}
+for(int r=0; r<m; r++)
+{
+	for(int c=0; c<n; c++)
+	{
+		WQ[r][c] = WQ[r][c]/maxQ;
+	}
+}
+}
+	
+	public static void main(String[] args)
+	{
+		Random generator = new Random();
+		DecimalFormat df = new DecimalFormat("0.00");
+
+		int m = 16;
+		int n =4;
+		int L[]={2,3,5,2};
+		int W[]={4,3,2,1};
+		double [][]Q={
+				{0.35,0.82,0.58,0.45},
+				{0.84,0.88,0.86,0.36},
+				{0.96,0.51,0.45,0.64},
+				{0.22,0.33,0.68,0.33},
+				{0.35,0.80,0.58,0.35},
+				{0.84,0.85,0.86,0.36},
+				{0.96,0.90,0.88,0.87},
+				{0.55,0.23,0.45,0.58},
+				{0.65,0.34,0.78,0.18},
+				{0.62,0.78,0.68,0.31},
+				{0.96,0.50,0.10,0.73},
+				{0.20,0.50,0.80,0.96},
+				{0.38,0.54,0.72,0.20},
+				{0.91,0.31,0.34,0.15},
+				{0.45,0.68,0.53,0.49},
+				{0.78,0.67,0.80,0.62},};
+		try 
+		{
+			BufferedWriter out = new BufferedWriter(new FileWriter(("Result"), true));
+			out.write("Q: \n");	// Random Q
+			for(int r=0; r<m; r++)
+			{
+				for(int c=0; c<n; c++)
+				{
+	//				Q[r][c] = generator.nextDouble();
+					out.write(df.format(Q[r][c]) + "	");
+				}
+				out.write("\n");
+			}			
+			out.write("\n");
+			out.write("\nL: \n");	//Random L
+			for (int i =0; i<n; i++) 	
+			{ 	
+	//			L[i] = generator.nextInt(m/n)+1;
+				out.write(L[i] + "	");
+			}
+			out.write("\n");
+			out.close();
+		}
+		catch (IOException e) {System.out.println ("Error in writing into a file!");}
+		//TEST parameters:
+		int[][] T = new int[m][n];
+		long t11 = System.nanoTime();
+		//Init ILOG and resolve
+
+		//Th Next statement is for GRA
+		//	GRA_ILOG ILOG = new GRA_ILOG(m, n, Q, L);			//GRA 
+		//Replace the above line by the following three lines, you will get WGRA
+		double WQ[][]= new double [m][n];
+		getWQ (m,n, Q, WQ, W);
+		GRA_ILOG ILOG = new GRA_ILOG(m, n, WQ, L);				//WGRA
+
+		double v1 = ILOG.resolve(T);							//ILOG.resolve(TR, time);
+		long t12 = System.nanoTime();
+		double diff1 = (double)(t12-t11)/1000000;
+		printDMatrix (Q, m, n);
+		printIMatrix (T, m, n);
+		System.out.print("L=[");	
+		for (int j=0; j<n; j++) {System.out.print(L[j]+" ");}	System.out.println("]");
+		//The next line is for GRA.
+		//		System.out.println ("Total GRA ="+v1+" "+"Time = "+diff1+"ms");
+
+		//The following three statements are to get the sigma with the WGRA result. 
+		v1=0;
+		for(int r=0; r<m; r++)
+			for(int c=0; c<n; c++) v1+=Q[r][c]*T[r][c];
+		System.out.println ("Total GRA(W) ="+v1+" "+"Time = "+diff1+"ms");
+		System.out.println();
+		return;
+	}	
+}
+	
+

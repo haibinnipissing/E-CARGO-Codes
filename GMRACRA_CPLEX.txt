@@ -1,0 +1,390 @@
+/*
+* This program is to solve Group Multi-Role Assignment with Conflicting Roles and Agents. 
+* Author: Dr. Haibin Zhu, Sept. 2020.
+* Please cite: 
+* H. Zhu, “Group Multi-role Assignment with Conflicting Roles and Agents,” IEEE/CAA J. of Automatica Sinica, vol. 7, no. 6, Nov. 2020, pp. 1498-1510.
+*/
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.*;
+import java.lang.Integer;
+
+import ilog.concert.*;
+import ilog.cplex.*;
+class TestResult
+{
+	public double TF;
+	public double time;
+	public TestResult()
+	{
+		TF=0;
+		time =0;
+	}
+}
+
+class GRACAR_ILOG {
+	
+	private int m;	//number of agents
+	private int n;	//number of roles
+	
+	private double[] Q;	//Qualification matrix
+	private int[] C;		//Conflict matrix
+	private int[] L;	//Requirement array
+	private int[] RC;		//Conflict matrix
+	private int[] LA;	//Requirement array
+	private int[][] A;  //Assignment array
+	
+	DecimalFormat df = new DecimalFormat("0.00");
+	
+	double optimized_result = 0;
+	boolean bILOG_result;
+	
+	public GRACAR_ILOG(int nagent, int nrole, double[][] QM, int[][] AC, int [][] RCIN, int[]LIN, int []LAIN)
+	{
+		m = nagent;
+		n = nrole;
+		
+		Q = new double[m*n];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = QM[r][c]; i++; }
+		
+		C = new int[m*m];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<m; c++){C[i] = AC[r][c]; i++; }
+		RC = new int[n*n];
+		for(int i=0, r=0; r<n; r++) for (int c=0; c<n; c++){RC[i] = RCIN[r][c]; i++; }
+		
+		L = new int[n];
+		for (int c=0; c<m; c++) L[c] = LIN[c];
+		LA = new int[m];
+		for(int i=0, r=0; r<m; r++) LA[r] = LAIN[r];
+		A = new int[m][n];
+		for(int r=0; r<m; r++) for (int c=0; c<n; c++) A[r][c] = 0;
+		
+		//LOG:
+/*		System.out.println("Qualification Matrix: ");
+		for (int i=0;i<m*n;i++)
+		{
+			System.out.print(df.format(Q[i])+"	");
+			if ((i+1)%(n) == 0) System.out.print("\n");
+			
+		}
+		System.out.print("\n");	
+		
+		System.out.println("Requirement Array: ");
+		for(int i=0; i<n; i++)
+		{
+			System.out.print(L[i]+"	");
+		}
+		System.out.print("\n");	
+		
+		System.out.println("Conflict Matrix: ");
+		for (int i=0; i<m*m;i++)
+		{
+			System.out.print(C[i]+"	");
+			if ((i+1)%m == 0) System.out.print("\n");	
+		}
+		System.out.print("\n");	
+*/	}
+	
+	public double resolve(int[][]TR)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+			
+			//cplex.addMinimize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			
+	
+			//Constrain type 1: Add role requirement constrains, 
+			//the number of people assigned on each role should meet the requirement on that role.
+			//Hence, n constrains will be added.
+			for (int j = 0; j<n; j++)
+			{
+				IloLinearNumExpr exprReqConstrain = cplex.linearNumExpr();
+				for (int i = 0; i<m; i++)
+				{
+				exprReqConstrain.addTerm(1, x[i*n+j]);
+				}
+				cplex.addEq(exprReqConstrain, L[j]);
+			}
+			//Constrain type 2: Add agent ability requirement constrains, 
+			//the number of people assigned on each role should meet the requirement on that role.
+			//Hence, n constrains will be added.
+			for (int i = 0; i<m; i++)
+			{
+				IloLinearNumExpr AgentAbilityConstraint = cplex.linearNumExpr();
+				for (int j = 0; j<n; j++)
+				{
+					AgentAbilityConstraint.addTerm(1, x[i*n+j]);
+				}
+				cplex.addLe(AgentAbilityConstraint, LA[i]);
+			}
+					
+			//Constrain type 3: The agent conflict constrains. 
+			for (int r=0; r<n; r++) // Scan the cost matrix by column
+			{
+				if ( 1 < L[r] )
+				{
+					//Find out all the index of x on that column
+					int index[] = new int[m]; //number of person
+					int indexcounter = 0;
+					for(int i=0; i<m*n; i++)
+					{
+						if(i%n==r)
+						{ 	
+							index[indexcounter]=i;
+							indexcounter++;
+						}
+					}
+					//Add conflicts constrains on that role. 
+					for(int i=0; i<m*m; i++) //i size of the conflict chart
+					{
+						int row = i/m; 
+						int col = i%m; 
+						if (1 == C[i])
+						{
+							IloLinearNumExpr conflict = cplex.linearNumExpr();
+							conflict.addTerm(1, x[index[col]]);
+							conflict.addTerm(1, x[index[row]]);
+							cplex.addLe(conflict, 1);
+						}
+					}
+				}
+			}
+			
+			//Constrain type 4: The role conflict constrains. 
+			for (int r=0; r<m; r++) // Scan the T matrix by column
+			{
+				if ( 1 < LA[r] )
+				{
+					//Find out all the index of x on that column
+					int index[] = new int[n]; //number of role
+					int indexcounter = 0;
+					for(int i=0; i<m*n; i++)
+					{
+						if(i%m==r)
+						{ 	
+							index[indexcounter]=i;
+							indexcounter++;
+						}
+					}
+					//Add conflicts constrains on that role. 
+					for(int i=0; i<n*n; i++) //i size of the conflict chart
+					{
+						int row = i/n; 
+						int col = i%n; 
+						if (1 == RC[i])
+						{
+							IloLinearNumExpr conflict = cplex.linearNumExpr();
+							conflict.addTerm(1, x[index[col]]);
+							conflict.addTerm(1, x[index[row]]);
+							cplex.addLe(conflict, 1);
+						}
+					}
+				}
+			}
+	
+			//Solve LP
+			//long t1 = System.nanoTime();
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();
+				//cplex.output().println("Solution status = " + cplex.getStatus());
+				//cplex.output().println("Solution value = " + cplex.getObjValue());
+				
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();
+				//cplex.output().println("Num COL: " + ncols);
+				
+//				cplex.output().println("Result Table: " );
+				for (int j=0; j<ncols; j++)
+				{
+					A[j/n][j%n] = (int)(val[j]+0.000001); 
+//					System.out.print(A[j/n][j%n] + " ");
+					TR[j/n][j%n] = A[j/n][j%n];
+					//System.out.print(val[j]+ "	");
+//					if ((j+1)%(n) == 0) {System.out.print("\n");}	
+				}
+				//TR = A;
+				cplex.end();
+				
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+			//long t2 = System.nanoTime();
+			//time[0] = (t2-t1)/1000000;
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+		
+		
+		return(optimized_result);
+	}
+	
+	public double getOptimizedResult()
+	{
+		return optimized_result;
+	}
+}
+
+public class GMRACRA_C_Rate {
+	 public static  void printDMatrix (double [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0.00");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+		 public static  void printIMatrix (int [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+
+public static int sigmaL(int []L){
+	int total=0;
+	for(int j=0; j<L.length; j++) 
+		total+=L[j];
+	return total;
+}
+	
+public static void main(String[] args)
+{	
+	Random generator = new Random();
+	DecimalFormat df = new DecimalFormat("0.00");
+	//int m, n ; 
+	try 
+	{
+	BufferedWriter out = new BufferedWriter(new FileWriter(("Result.txt"), true));
+	TestResult Res1[]=new TestResult [100];
+	TestResult Res2[]=new TestResult [100];
+	int m=20, n =20;
+	int succ=0, fail=0;
+	for (int ii =0; ii<100; ii++) {
+	Res1[fail]=new TestResult();
+	Res2[succ]=new TestResult();
+	int []L=new int [n];
+	int []LA=new int [m];
+	double [][]Q=new double [m][n];
+	int [][]AC=new int [m][m];
+	int [][]RC=new int [n][n];
+	double probability =0.5;
+
+//		out.write("Q: \n");	// Random Q
+		for(int r=0; r<m; r++)
+		{
+			for(int c=0; c<n; c++)
+			{
+				Q[r][c] = generator.nextDouble();
+	//			out.write(df.format(Q[r][c]) + "	");
+			}
+///				out.write("\n");
+		}			
+//		out.write("\n");
+		
+		// Random AC
+		for(int i = (m-1); i>=0; i--) //Init
+		{
+			for(int j = 0; j<=i; j++  )
+			{
+				int signal;
+				if (i==j) signal=0;
+//				 else if (generator.nextDouble() <= probability) signal = 1;
+				 else if (generator.nextDouble() < probability) signal = 1;
+				        else signal = 0;
+				AC[i][j] = signal;
+				AC[j][i] = AC[i][j];
+			}
+		}
+		// Random RC
+		for(int i = (n-1); i>=0; i--) //Init
+		{
+			for(int j = 0; j<=i; j++  )
+			{
+				int signal;
+				if (i==j) signal=0;
+//				 else if (generator.nextDouble() <= probability) signal = 1;
+				 else if (generator.nextDouble() < probability) signal = 1;
+				        else signal = 0;
+				AC[i][j] = signal;
+				AC[j][i] = AC[i][j];
+			}
+		}
+		int totalL=0;
+		for (int i =0; i<n; i++) 	
+		{ 	
+			L[i] = generator.nextInt(5)+1;
+			totalL+=L[i];
+//			out.write(L[i] + "	");
+		}
+//		out.write("\n");
+//		out.write("\nLA: \n");	//Random L		
+		int totalLA=0;
+		for (int i =0; i<m; i++) 	
+		{ 	
+			LA[i] = generator.nextInt(5)+1;
+			totalLA+=LA[i];
+		}
+		int diff = totalL-totalLA;
+		if (diff>0) {
+			for (int i =0; i<diff; i++)
+				{	int rind=generator.nextInt(m);
+					LA[rind]+=1;
+				}
+		}
+	
+		//TEST parameters:
+		int[][] T = new int[m][n];
+		long t11 = System.nanoTime();
+		//Init ILOG and resolve
+		GRACAR_ILOG ILOG = new GRACAR_ILOG(m, n, Q, AC, RC, L, LA);
+		double v1 = ILOG.resolve(T);//ILOG.resolve(TR, time);
+		long t12 = System.nanoTime();
+		double diff1 = (double)(t12-t11)/1000000;
+		if (v1==0) {
+			Res1[fail].TF=v1;
+			Res1[fail].time=diff1;		
+			fail++;
+		}
+		else
+		{
+			Res2[succ].TF=v1;
+			Res2[succ].time=diff1;				
+			succ++;
+		}
+	}
+	System.out.println("Fail:");
+	for (int ii =0; ii<fail; ii++) 
+	{
+		System.out.println(""+df.format(Res1[ii].TF)+","+Res1[ii].time);
+	}
+	System.out.println("Success:");
+	for (int ii =0; ii<succ; ii++) 
+	{
+		System.out.println(""+df.format(Res2[ii].TF)+","+Res2[ii].time);
+	}
+		out.close();
+		}
+		catch (IOException e) {System.out.println ("Error in writing into a file!");}
+		return;
+	}	
+}
