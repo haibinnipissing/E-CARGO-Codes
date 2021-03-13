@@ -1,31 +1,18 @@
+
 /**
  * Using Simulated Annealing and GRA to solve the Agent Classification Problem
- * Partial code adapted from the implementation of the classic hungarian algorithm for the assignment problem.
- *  by Gary Baker (GPL v3), 2007 
- *  @author Haibin Zhu, Dec. 23, 2019
- *  Please cite: 
+ * Please cite: 
  * H. Zhu, “Agent Categorization with Group Role Assignment with Constraints (GRA+) and Simulated Annealing (SA),” IEEE Trans. on Computational Social Systems, vol. 7, no. 5, Oct. 2020, pp. 1234-1245.  
- */  
- 
+ * An implementation of Agent Categorization with Simulated Annealing Algorithm. 
+ * @author Haibin Zhu, Jan. 13, 2020
+*/
+
+import java.text.DecimalFormat;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.Collections;
-
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.*;
-import java.lang.Integer;
-
 import ilog.concert.*;
 import ilog.cplex.*;
-
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.text.DecimalFormat;
-import java.util.*;
 
 class GRA_ILOG {
 	private int m;	//number of agents
@@ -33,41 +20,19 @@ class GRA_ILOG {
 	private double[] Q;	//Qualification matrix
 	private int[] L;	//Requirement array
 	private int[][] A;  //Assignment array
-	private int[] AI;  //Agent Index array
 	
-	static double Sim [][]={{100,30,50,60,40,60,30,30,30,50,60,30,60,50,40,20,70,60,60,50,70,60,60,60},
-        	{30,100,30,30,50,20,80,80,80,10,20,70,20,10,40,40,20,40,30,40,30,20,20,20},
-        	{50,30,100,60,20,40,30,30,30,40,50,40,50,50,30,20,40,40,40,30,60,80,80,80},
-        	{60,30,60,100,0,90,20,20,20,30,40,30,80,60,50,0,50,50,50,40,60,60,60,60},
-        	{40,50,20,0,100,10,30,20,30,20,10,40,0,0,40,90,0,20,20,60,20,40,50,60},
-        	{60,20,40,90,10,100,20,20,0,40,40,30,50,60,0,10,50,40,60,50,80,30,30,30},
-        	{30,80,30,20,30,20,100,90,90,20,20,90,0,0,40,30,0,20,0,0,0,0,0,0},
-        	{30,80,30,20,20,20,90,100,90,10,10,85,0,0,40,30,0,20,0,0,0,0,0,0},
-        	{30,80,30,20,30,0,90,90,100,10,10,90,0,0,40,30,0,20,0,0,0,0,0,0},
-        	{50,10,40,30,20,40,20,10,10,100,40,0,30,30,0,0,20,30,30,30,40,30,30,30},
-        	{60,20,50,40,10,40,20,10,10,40,100,0,40,20,0,0,30,40,30,30,40,85,85,85},
-        	{30,70,40,30,40,30,90,85,90,0,0,100,0,0,40,30,0,20,0,0,0,30,30,30},
-        	{60,20,50,80,0,50,0,0,0,30,40,0,100,40,0,0,50,40,50,20,60,50,50,50},
-        	{50,10,50,60,0,60,0,0,0,30,20,0,40,100,0,0,40,40,10,0,50,40,40,40},
-        	{40,40,30,50,40,0,40,40,40,0,0,40,0,0,100,20,30,20,40,40,0,40,40,40},
-        	{20,40,20,0,90,10,30,30,30,0,0,30,0,0,20,100,0,30,20,30,0,30,30,30},
-        	{70,20,40,50,0,50,0,0,0,20,30,0,50,40,30,0,100,30,20,40,50,40,40,40},
-        	{60,40,40,50,20,40,20,20,20,30,40,20,40,40,20,30,30,100,50,40,50,50,50,50},
-        	{60,30,40,50,20,60,0,0,0,30,30,0,50,10,40,20,20,50,100,40,40,70,70,70},
-        	{50,40,30,40,60,50,0,0,0,30,30,0,20,0,40,30,40,40,40,100,40,60,60,60},
-        	{70,30,60,60,20,80,0,0,0,40,40,0,60,50,0,0,50,50,40,40,100,50,50,50},
-        	{60,20,80,60,40,30,0,0,0,30,85,30,50,40,40,30,40,50,70,60,50,100,90,90},
-        	{60,20,80,60,50,30,0,0,0,30,85,30,50,40,40,30,40,50,70,60,50,90,100,90},
-        	{60,20,80,60,60,30,0,0,0,30,85,30,50,40,40,30,40,50,70,60,50,90,90,100}};
 	DecimalFormat df = new DecimalFormat("0.00");
 	
 	double optimized_result = 0;
 	boolean bILOG_result;
 	
-	public GRA_ILOG(int nagent, int nrole, int[]RA, int [] AI)
+	public GRA_ILOG(int nagent, int nrole, double[][] QM, int[]RA)
 	{
 		m = nagent;
 		n = nrole;
+		
+		Q = new double[m*n];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = QM[r][c]; i++; }
 		
 		L = new int[n];
 		L = RA;
@@ -101,9 +66,6 @@ class GRA_ILOG {
 			IloCplex cplex = new IloCplex();	//initialize the cplex object
 			
 			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
-			IloIntVar[]y = cplex.intVarArray(n, 0, m);//
-			int i = 0;
-	//?????		for(int r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = Sim[r][y[c]]; i++; }
 			
 			//cplex.addMinimize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
 			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
@@ -175,115 +137,6 @@ class GRA_ILOG {
 		return optimized_result;
 		
 	}
-}
-
-class AC_CPLEX {
-	 public static  void printDMatrix (double [][]x, int m, int n){
-			DecimalFormat tw = new DecimalFormat("0.00");
-			for (int i = 0; i < m; i++)
-			{	for (int j =0; j< n; j++)
-				{
-				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
-				}
-			System.out.println ();
-			}
-			System.out.println ();
-		}	
-		 public static  void printIMatrix (int [][]x, int m, int n){
-			DecimalFormat tw = new DecimalFormat("0");
-			for (int i = 0; i < m; i++)
-			{	for (int j =0; j< n; j++)
-				{
-				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
-				}
-			System.out.println ();
-			}
-			System.out.println ();
-		}	
-
-public static int sigmaL(int []L){
-	int total=0;
-	for(int j=0; j<L.length; j++) 
-		total+=L[j];
-	return total;
-}
-	
-	public static void main(String[] args)
-	{
-		Random generator = new Random();
-		DecimalFormat df = new DecimalFormat("0.00");
-		
-    	int m =24, n =6;
-        Agent Agent = new Agent("Anthropology",0);
-        RolesManager.addAgent(Agent);
-        Agent Agent2 = new Agent("Biology", 1);
-        RolesManager.addAgent(Agent2);
-        Agent Agent3 = new Agent("Child and Family Studies",2);
-        RolesManager.addAgent(Agent3);
-        Agent Agent4 = new Agent("Classical Studies",3);
-        RolesManager.addAgent(Agent4);
-        Agent Agent5 = new Agent("Computer Science",4 );
-        RolesManager.addAgent(Agent5);
-        Agent Agent6 = new Agent("English Studies",5 );
-        RolesManager.addAgent(Agent6);
-        Agent Agent7 = new Agent("Environmental and Physical Geography",6);
-        RolesManager.addAgent(Agent7);
-        Agent Agent8 = new Agent("Environmental Biology and Technology",7);
-        RolesManager.addAgent(Agent8);
-        Agent Agent9 = new Agent("Environmental Geography",8);
-        RolesManager.addAgent(Agent9);
-        Agent Agent10 = new Agent("Fine Arts",9);
-        RolesManager.addAgent(Agent10);        
-        Agent Agent11 = new Agent("Gender Eqality and Social Justice",10);
-        RolesManager.addAgent(Agent11);
-        Agent Agent12 = new Agent("Geography",11);
-        RolesManager.addAgent(Agent12);
-        Agent Agent13 = new Agent("History",12);
-        RolesManager.addAgent(Agent13);
-        Agent Agent14 = new Agent("Liberal Arts",13);
-        RolesManager.addAgent(Agent14);
-        Agent Agent15 = new Agent("Liberal Science",14);
-        RolesManager.addAgent(Agent15);
-        Agent Agent16 = new Agent("Mathematics",15);
-        RolesManager.addAgent(Agent16);
-        Agent Agent17 = new Agent("Native Studies",16);
-        RolesManager.addAgent(Agent17);
-        Agent Agent18 = new Agent("Philosophy",17);
-        RolesManager.addAgent(Agent18);
-        Agent Agent19 = new Agent("Political Science",18);
-        RolesManager.addAgent(Agent19);
-        Agent Agent20 = new Agent("Psychology",19);
-        RolesManager.addAgent(Agent20);
-        Agent Agent21 = new Agent("Religions and Cultures",20);
-        RolesManager.addAgent(Agent21);
-        Agent Agent22 = new Agent("Social Welfare and Social Develpment",21);
-        RolesManager.addAgent(Agent22);
-        Agent Agent23 = new Agent("Social Work",22);
-        RolesManager.addAgent(Agent23);
-        Agent Agent24 = new Agent("Social Work",23);
-        RolesManager.addAgent(Agent24);
-		int []L= {3,3,3,3,3,3};
-		//TEST parameters:
-		int[] AI = new int[n];
-
-		int[][] T = new int[m][n];
-		long t11 = System.nanoTime();
-		//Init ILOG and resolve
-		GRA_ILOG ILOG = new GRA_ILOG(m, n, L, AI);
-		double v1 = ILOG.resolve(T);//ILOG.resolve(TR, time);
-		long t12 = System.nanoTime();
-		double diff1 = (double)(t12-t11)/1000000;
-        System.out.println("Total Similarity Score: " + v1);
-        System.out.println("Roles: " )
-        for (int j =0; j< n; j++) 
-        	System.out.print(RolesManager.getAgent(i).getAgentName()+",");
-        for (int j =0; j< n; j++) {
-        	for (int i =0; i< m; i++)
-        		if (1==best.T[i][j]) System.out.print(RolesManager.getAgent(i).getAgentName()+",");
-            System.out.print(";");
-        }
-		return;
-	}	
 }
 
 
@@ -426,8 +279,8 @@ class Roles{
     	for (int i =0; i < m; i++)
         	for (int j =0; j < n; j++)
         		Q[i][j]=Sim[i][Roles.get(j).getid()];
- //   	int L[] = {3,3,3,3,3,3};
-    	int L[] = {2,2,2,2,2,2};
+    	int L[] = {3,3,3,3,3,3};
+  //  	int L[] = {2,2,2,2,2,2};
 		GRA_ILOG ILOG = new GRA_ILOG(m, n, Q, L);
 		double v1 = ILOG.resolve(T);//ILOG.resolve(TR, time);
         return v1;
@@ -535,8 +388,8 @@ class Utility {
 		return (int)d;
 	}
 }
-/*
-public class SA_CA {
+
+public class GitHub {
     
     public static void main(String[] args) {
         // Create and add our cities
@@ -589,24 +442,33 @@ public class SA_CA {
         RolesManager.addAgent(Agent23);
         Agent Agent24 = new Agent("Social Work",23);
         RolesManager.addAgent(Agent24);
+
         //Set initial temp
         double temp = 100000;
 
         //Cooling rate
-   //     double coolingRate = 0.003;
+ //       double coolingRate = 0.003;
         double coolingRate = 0.005;
+    //      double coolingRate = 0.007;
+  //          double coolingRate = 0.01;
+  //      double coolingRate = 0.015; 
+     
+   //     double coolingRate = 0.02; 
+//        double coolingRate = 0.03; //(No!)
         
+ //       double coolingRate = 0.05; //(No!)
+           
         //create random intial solution
         Roles currentSolution = new Roles();
         currentSolution.generateIndividual();
         
         System.out.println("Total Similarity of initial solution: " + currentSolution.getTotalSimilarity());
         System.out.println("Roles: " + currentSolution);
-
+		long t1 = System.nanoTime();
         // We would like to keep track if the best solution
         // Assume best solution is the current solution
         Roles best = new Roles(currentSolution.getRoles());
-        int x=0;
+        int x=0, y=0;
         // Loop until system has cooled
         while (temp > 1) {
             // Create new neighbour Roles
@@ -615,7 +477,7 @@ public class SA_CA {
             for (int i =0; i<n; i++) NewlyUsedCities.add(currentSolution.getAgent(i));
 
             // Get random positions in the Roles
-            int RolesPos1 = Utility.randomInt(0 , newSolution.n);
+            int RolesPos1 = Utility.randomInt(0 , n);
           //  int RolesPos2 = Utility.randomInt(n , newSolution.m);
             int RolesPos2;
             RolesPos2 = (n+x++)%m; 
@@ -647,9 +509,19 @@ public class SA_CA {
             
             // Cool system
             temp *= 1 - coolingRate;
+            y++;
         }
+		long t2 = System.nanoTime();
 
-        System.out.println("Total Similarity Score: " + best.getTotalSimilarity());
+        System.out.println("Maximized Assinged Similarity Score: " + best.getTotalSimilarity());
+        double total=0;
+        for (int j =0; j< m; j++) 
+        	for (int i =0; i< m; i++)
+        		total+=Roles.Sim[j][i];
+    	System.out.println("Total values: " + total +".");
+		System.out.println("Iteration: " + y +".");
+		double diff = (double)(t2-t1)/1000000;
+		System.out.println("Time: " + diff +"ms");
         System.out.println("Roles: " + best);
         for (int j =0; j< n; j++) {
         	for (int i =0; i< m; i++)
@@ -658,4 +530,3 @@ public class SA_CA {
         }
     }
 }
-*/
