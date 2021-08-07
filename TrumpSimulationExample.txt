@@ -2,7 +2,7 @@
 /**
  * An implementation of the Revised Group Multi-role assignment with CPLEX;
  * This is for the special example, m = 18, n =600, Q is in "Q.txt". 
- * There are 20 industries and 30 countries with names. 
+ * There are 20 industries and 30 countries or regions with names. 
  * Haibin Zhu, Dec. 20, 2020
  * Please cite:
  * H. Zhu (2021), “Why Did Mr. Trump Oppose Globalization? An E-CARGO Approach,” IEEE Transactions on Computational Social Systems (In Press), DOI: 10.1109/TCSS.2021.3077369, avail: https://ieeexplore.ieee.org/document/9439864 .
