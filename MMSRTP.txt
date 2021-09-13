@@ -1,0 +1,910 @@
+/*
+ * This program is for Temporal Role Transfer with Strong Restriction.
+Please cite:
+[1]H. Zhu, and M. Zhou, “M–M Role-Transfer Problems and Their Solutions,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 39, no. 2, Mar. 2009, pp. 448-459. 
+[2]H. Zhu, and M. Zhou, “Role Transfer Problems and Algorithms,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 38, no. 6, Nov. 2008, pp. 1442-1450. 
+*/
+import java.math.BigInteger;
+import java.util.Random;
+class TestResult
+{
+	public int scale;
+	public double time;
+	public TestResult()
+	{
+		scale=0;
+		time =0;
+	}
+}
+class CombinationGenerator {
+  private int[] a;
+  private int n;
+  private int r;
+  private BigInteger numLeft;
+  private BigInteger total;
+  //------------
+  // Constructor
+  //------------
+  public CombinationGenerator (int n, int r) {
+    if (r > n) {
+      throw new IllegalArgumentException ();
+    }
+    if (n < 1) {
+      throw new IllegalArgumentException ();
+    }
+    this.n = n;
+    this.r = r;
+    a = new int[r];
+    BigInteger nFact = getFactorial (n);
+    BigInteger rFact = getFactorial (r);
+    BigInteger nminusrFact = getFactorial (n - r);
+    total = nFact.divide (rFact.multiply (nminusrFact));
+    reset ();
+  }
+  //------
+  // Reset
+  //------
+
+  public void reset () {
+    for (int i = 0; i < a.length; i++) {
+      a[i] = i;
+    }
+    numLeft = new BigInteger (total.toString ());
+  }
+  //------------------------------------------------
+  // Return number of combinations not yet generated
+  //------------------------------------------------
+  public BigInteger getNumLeft () {
+    return numLeft;
+  }
+  //-----------------------------
+  // Are there more combinations?
+  //-----------------------------
+  public boolean hasMore () {
+    return numLeft.compareTo (BigInteger.ZERO) == 1;
+  }
+
+  //------------------------------------
+  // Return total number of combinations
+  //------------------------------------
+  public BigInteger getTotal () {
+    return total;
+  }
+  //------------------
+  // Compute factorial
+  //------------------
+  private static BigInteger getFactorial (int n) {
+    BigInteger fact = BigInteger.ONE;
+    for (int i = n; i > 1; i--) {
+      fact = fact.multiply (new BigInteger (Integer.toString (i)));
+    }
+    return fact;
+  }
+  //--------------------------------------------------------
+  // Generate next combination (algorithm from Rosen p. 286)
+  //--------------------------------------------------------
+  public int[] getNext () {
+    if (numLeft.equals (total)) {
+      numLeft = numLeft.subtract (BigInteger.ONE);
+      return a;
+    }
+
+    int i = r - 1;
+    while (a[i] == n - r + i) {
+      i--;
+    }
+    a[i] = a[i] + 1;
+    for (int j = i + 1; j < r; j++) {
+      a[j] = a[i] + j - i;
+    }
+    numLeft = numLeft.subtract (BigInteger.ONE);
+    return a;
+  }
+}
+public class MMSTP {
+	//LL is to put L to L0 by deleting the item jj.
+	public static void LL(int []L0, int []L,  int jj, int n2)
+	{
+		 int j;
+				for ( j =0; j< jj; j++)
+					L0[j]=L[j];
+				for (j = jj+1; j<n2; j++)
+					L0[j-1]=L[j];					
+	}
+	//LL1 is to put L0 to L by keeping the item jj in L.
+	public static void LL1(int []L0, int []L,  int jj, int n2)
+	{
+		 int j;
+				for ( j =0; j< jj; j++)
+					L[j]=L0[j];
+				for (j = jj+1; j<n2; j++)
+					L[j]=L0[j-1];					
+	}
+	//MCP1M is to copy C1 and Q to Cn and QN by deleting the rows in AR and the column jj.
+	public static void MCP1M(int [][]CN, int [][]C1, int [][]QN, int [][]Q, int []AR, int jj, int n1, int n2)
+	{ int i, j, k;
+	//sort AR;
+	for (i = 0; i<AR.length; i++)
+		for (j = i+1; j<AR.length; j++)
+			if ( AR[i]>AR[j]) {int temp =AR[i]; AR[i]= AR[j]; AR[j]=temp;}
+
+//	for (k =0; k<AR.length; k++) 			System.out.print(AR[k]+"");	System.out.println();
+	
+	int [][]tempCN = new int [n1][n2-1];
+	int [][]tempQN = new int [n1][n2-1];
+	//Delete one column jj.
+	for ( i = 0; i < n1; i++)
+	{	for ( j =0; j< jj; j++)
+		{	tempCN[i][j]=C1[i][j];
+			tempQN[i][j]=Q[i][j];
+		}						
+		for ( j =jj+1; j< n2; j++)
+		{	tempCN[i][j-1]=C1[i][j];
+		    tempQN[i][j-1]=Q[i][j];
+		}
+	}
+	//Use three segments to delete rows in AR, before AR[0], middle, and after AR[length-1].
+	for ( j =0; j< n2-1; j++)
+	{	for (i = 0;i<AR[0];i++)
+		{ CN[i][j]=tempCN[i][j];
+		  QN[i][j]=tempQN[i][j];
+		}
+	}
+	
+	for (k =1; k<AR.length; k++)
+	{	for ( j =0; j< n2-1; j++)
+		{	for (i =AR[k-1]+1;i<AR[k];i++)
+			{ 
+			  CN[i-k][j]=tempCN[i][j];
+			  QN[i-k][j]=tempQN[i][j];
+			}
+		}						
+	}
+	for ( j =0; j< n2-1; j++)
+	{	for (i = AR[AR.length-1]+1;i<n1;i++)
+		{ 
+		  CN[i-AR.length][j]=tempCN[i][j];
+		  QN[i-AR.length][j]=tempQN[i][j];
+		}
+	}
+    }
+	
+//MCP11M is to put CN to C1, QN to Q, by keeping the rows in ARand the column jj of C1 and Q.
+	public static void MCP11M(int [][]CN1, int [][]C1, int [][]QN, int [][]Q, int []AR, int jj, int n1, int n2)
+	{ int i,j, k;
+	//sort AR;
+	for (i = 0; i<AR.length; i++)
+		for (j = i+1; j<AR.length; j++)
+			if ( AR[i]>AR[j]) {int temp =AR[i]; AR[i]= AR[j]; AR[j]=temp;}
+
+	for ( i = 0; i < AR[0]; i++)
+	{	for ( j =0; j< jj; j++)
+		{	C1[i][j]= CN1[i][j];
+		    Q[i][j]= QN[i][j];
+		}
+		for ( j =jj+1; j< n2; j++)
+		{	C1[i][j]= CN1[i][j-1];
+			Q[i][j]= QN[i][j-1];
+		}
+	}
+	for (k = 1; k<AR.length; k++)
+	{
+		for ( i = AR[k-1]+1; i < AR[k]; i++)
+		{	for ( j =0; j< jj; j++)
+			{	C1[i][j]= CN1[i-k][j];
+				Q[i][j]= QN[i-k][j];
+			}
+		}
+		for ( i = AR[k-1]+1; i < AR[k]; i++)
+		{	for ( j =jj+1; j< n2; j++)
+			{	C1[i][j]= CN1[i-k][j-1];
+				Q[i][j]= QN[i-k][j-1];
+			}
+		}
+	}
+	for ( i = AR[AR.length-1]+1; i < n1; i++)
+	{	for ( j =0; j< jj; j++)
+		{	C1[i][j]= CN1[i-AR.length][j];
+		    Q[i][j]= QN[i-AR.length][j];
+		}
+		for ( j =jj+1; j< n2; j++)
+		{	C1[i][j]= CN1[i-AR.length][j-1];
+			Q[i][j]= QN[i-AR.length][j-1];
+		}
+	}
+}
+	public static boolean ProcessMM(int [] L, int [][] C0, int [][] C1, int [][] Q0, int [][]Q, int m, int n)
+	{
+		boolean res = true;
+		if (n==0) return true;
+		if ((m==0 )&&(n!=0)) return false;
+		int Z[][] = new int [m][n];
+		int CC[]= new int [n];
+		int D[]= new int [n];		//D is a vector for the difference between the number required current agents and the number of actual current agents for each role.  
+		for (int j =0; j< n; j++) CC[j]=0;
+		//Step 1: Preparation
+//		System.out.println ("In MM...............");
+		
+		for (int j =0; j< n; j++)
+		{	for (int i = 0; i < m; i++)
+			{C1[i][j] =C0[i][j]; 			 Z[i][j]=C0[i][j]+Q0[i][j];
+			Q[i][j]=Q0[i][j];
+			CC[j]=CC[j]+C1[i][j];
+//			System.out.print (C0[i][j]);		System.out.print (" ");	
+			}
+		D[j]=L[j]-CC[j];// index????
+		if (D[j]>0) res= false;
+//		System.out.println ();
+		}
+//		System.out.println ("Q----");
+//		for (int j =0; j< n; j++)		{	for (int i = 0; i < m; i++)		{			System.out.print (Q0[i][j]);		System.out.print (" ");			}		System.out.println ();		}
+
+//		System.out.println("In MM...............");
+		int sigma;
+		for (int j =0; j< n; j++)//Check if all the roles have enough active agents
+		{	sigma =0;
+			for (int i = 0; i < m; i++)		sigma += Z[i][j];
+			if (sigma==0)	{	return false;	}//There is one role that has no any agent to play in this step!
+		}
+		for (int l = 0; l<n; l++)
+			if (D[l]>=1)//Start trying from this role l
+			{
+//				l means the role that has not enough current agents; p means how many agents are required to let role l to work
+//				k is the number of active agents for role l
+//				A is a k dimensional vector where each element is an active agent for role k.
+//				s is the number of combinations taking p from k. i.e.,
+//				s =   = k!/(p!(k-p)!)
+				int p = D[l];
+				int cnt =0, k=0;
+				for (int ii = 0; ii< m; ii++)				{if (C1[ii][l]==1) cnt ++; if (Q[ii][l]==1) k++;};
+				int []VA = new int [p+cnt];
+				int []A = new int [k];
+				cnt=0; k=0;
+				for (int ii = 0; ii< m; ii++)
+				{	if (C1[ii][l]==1)		//a current agent of role l
+					{					VA[cnt]=ii; cnt ++;					};
+					if (Q[ii][l]==1)		//an active agent of role l
+					{A[k]=ii; k++;}
+				}
+//		The rows in V are all the combinations of p from k active agents. 
+//    	for (int x = 0; x< total; x++)		{	for (int y =0; y< k; y++)			{	System.out.print (V[x][y]);		System.out.print (" ");		}		System.out.println ();		}		System.out.println ();		        
+				if (k<p) return false;//Required agents are more than available active agents.
+				CombinationGenerator CG = new CombinationGenerator (k, p);
+				int total = CG.getTotal().intValue();
+				int[] indices;
+				int [][] V =new int [total][p];
+				int kk =0;
+				while (CG.hasMore ()) {
+					indices = CG.getNext ();
+					for (int i = 0; i < indices.length; i++) {    V[kk][i]=A[indices[i]];  }//Form the combination matrix  
+					kk++;
+				}
+				for (int i = 0; i<total; i++)
+				{for (int j =0;  j < p; j++ )  
+					{  
+						sigma = 0;
+						for ( int nn =0; nn< n; nn++)  sigma +=  C1[V[i][j]][nn];//Find an agent having no current role, i.e., a free agent.
+						if (sigma ==0)// A free agent ii is found.
+						{			C1[V[i][j]][l]= 1; Q[V[i][j]][l]=0;		}//to make L have enough current agents
+						else
+						{ for ( int ll =0; ll< n; ll++)//Find the current role of this agent.  		
+							{	if (1==C1[V[i][j]][ll])//The current role l is found. This transfer does not decrease the number of roles missing one current agent. 
+								{ 				//Transfer the current role of the agent found above
+								C1[V[i][j]][l] = 1;		C1[V[i][j]][ll] = 0;		Q[V[i][j]][ll] = 1; 		Q[V[i][j]][l] =0; 			//Modify the active roles.The current role and active roles are exclusive.
+								break; //Each agent has only one current role.	
+								}
+							}
+						}
+					}
+//		      C0’:= C1; Q’ := Q;    Delete rows in V[i] and the column l from C0’ and Q’;
+					for (int ii = cnt; ii< cnt+p; ii++) 
+				    	VA[ii]=V[i][ii-cnt];//VA includes the current agents and the newly trnasferred current agents.
+				    int [][]CN = new int [m-p-cnt][n-1];
+				    int [][]QN = new int [m-p-cnt][n-1];
+				    int CN1[][]=new int [m-p-cnt][n-1];
+				    int Q1[][]=new int [m-p-cnt][n-1];
+				    int []LN = new int [n-1];
+				    LL(LN, L, l, n);
+				   	int [] VA1 = new int [VA.length];
+				   	for (int x=0; x<VA.length; x++) 
+				   	VA1[x]=VA[x];
+				    MCP1M(CN, C1, QN, Q, VA1, l, m, n);//Remove all the current agents for role l		   	
+				    res=ProcessMM(LN,  CN, CN1, QN,Q1, m - p-cnt, n-1);
+				    if (res)
+				    {// Q := Q’ and C1 := C1’ but keeping original rows and the column l;
+				    	MCP11M(CN1, C1, Q1, Q, VA1, l, m, n);
+				    	LL1(LN, L, l, n);
+				    	return res;
+				    }
+//		Restore after a failure of next ProcessMM.
+					for (int xx =0; xx< m; xx++)
+						for (int yy = 0; yy < n; yy++)
+							{C1[xx][yy] =C0[xx][yy];
+							 Q[xx][yy] =Q0[xx][yy];
+							}
+		       }//end For (all i < total)
+			}//end of for (all l )
+        return res; //Have tried all the combinations
+}//end of Process1M
+	public static int TMMPSkernel (int [][]L, int [][]R, int [][][]CL, int [][][]QL, int s, int m)
+	{
+	int [] A =new int [s] ;
+//	int [][][]CL1 = CL;// All these are used to temporarily store the references
+//	int [][][]QL1 = QL;
+//	int [][]L1=L;
+//	int [][]R1=R;
+//	 The above foure lines are changed to 11 lines by H. Zhu to have a deep copy for all the matrices.
+	int n = CL[0][0].length;//initialize the matrix list with n
+	int [][][]CL1 = new int [s][m][n];
+	int [][][]QL1 = new int [s][m][n];
+	int [][]L1=new int [s][n];
+	int [][]R1=new int [s][n];
+	for (int i = 0; i < s; i++) 		{	for (int j =0; j< m; j++){	
+		CL1 [i][j]=new int [CL[i][0].length];		QL1 [i][j]=new int [CL[i][0].length];//change the dimention dynamically
+		for (int k = 0; k < CL[i][0].length; k++)		{CL1 [i][j][k]=CL[i][j][k]; QL1 [i][j][k]=QL[i][j][k];	} } }
+	for (int i = 0; i < s; i++) 		{			
+		L1 [i]=new int [CL[i][0].length];		R1 [i]=new int [CL[i][0].length];
+				for (int k = 0; k < CL[i][0].length; k++)	{L1 [i][k]=L[i][k];	R1 [i][k]=R[i][k];}};
+	
+	int res = s;//Record the smallest scale for all merging couples.
+	System.out.println ("CL initial:"+res);	
+	for (int k = 0; k < res; k++)
+	{for (int i = 0; i < m; i++) 		{	for (int j =0; j< CL[k][i].length; j++)			{		System.out.print (CL[k][i][j]);			System.out.print (" ");			}		} 		System.out.println ();	}
+	
+	for (int i =0; i< s; i++) A[i]=i;
+//	Form an s×2 matrix V from (2, A) (refers to the combinatory generator []), where V[i] a pair (a, b) of numbers of matrices.
+	CombinationGenerator CG = new CombinationGenerator (s, 2);
+	int total = CG.getTotal().intValue();
+	int[] indices;
+	int [][] V =new int [total][2];
+	int [] zero = new int [m];
+	for (int i=0; i<m; i++) zero[i]=0;
+	int kk =0;
+	while (CG.hasMore ()) {		indices = CG.getNext ();
+		for (int i = 0; i < indices.length; i++) {    V[kk][i]=A[indices[i]];  }//Form the combination matrix  
+		kk++;
+	}
+	for (int i =0; i<total; i++)
+	{	int res1=s;//Record the current scale for the current merging couple.
+		int n1 = CL[V[i][0]][0].length;		int n2 = CL[V[i][1]][0].length;		int [][] C = new int [m][n1+n2]; int Q[][] = new int [m][n1+n2];
+	     for (int j =0; j<m; j++ ) 
+	    	 {int k; 
+	    	 for (k =0; k<n1; k++) //copy the left most columns
+	    	      { C[j][k] = CL[V[i][0]][j][k]; 	    	         Q[j][k] = QL[V[i][0]][j][k];	    	      }
+	    	 for (k =n1; k<n1+n2; k++)//apprend n2 columns  
+	    	     { 	C[j][k] = 0; 	    	     Q[j][k] = CL[V[i][1]][j][k-n1] + QL[V[i][1]][j][k-n1];  	    }
+	    	 }
+	     int [][] CMM =new int [m][n1+n2];
+	     int [][] QMM =new int [m][n1+n2];
+    	 int [] LL =new int [n1+n2];
+    	 for (int j =0; j< n1; j++) LL[j]=L[V[i][0]][j];
+    	 for (int j =n1; j< n1+n2; j++) LL[j]=L[V[i][1]][j-n1];
+	     boolean result = ProcessMM(LL, C, CMM, Q, QMM, m,  n1+n2);
+	     if (result)// Two columns can be merged! Do the merging.
+	     { 	res1 = s-1;
+	     	//The following four are used to record the merging results in this level;
+	 		int [][][]CL_ToBeReturned=new int [res1][m][];
+			int [][][]QL_ToBeReturned=new int [res1][m][];
+			int [][]L_ToBeReturned=new int [res1][];
+			int [][]R_ToBeReturned=new int [res1][];
+	     	//The following four are used to record the merging results in the next level;
+	    	int [][][] CLL= new int [res1][m][];
+	     	int [][][] QLL= new int [res1][m][];
+	    	int [][] NLL=new int [res1][];//NLL is a new LL recording the role low range for each matrix.
+	    	int [][] RLL=new int [res1][];//RLL is a new R recording the role numbers for each matrix.
+
+	    	NLL[V[i][0]]=new int [n1+n2];
+	    	RLL[V[i][0]]=new int [n1+n2];
+	    	//Copy CL to CLL, QL to QLL.
+	 		for (int kkk =0; kkk< V[i][0]; kkk++) //Copy the other matrices before CL[V[i][0]].
+	 			for (int iii =0; iii< m; iii++) 
+	 			{	CLL [kkk][iii]= new int [CL[kkk][iii].length];			QLL [kkk][iii]= new int [QL[kkk][iii].length];	
+	 				for (int jjj =0; jjj< CL[kkk][iii].length; jjj++)  {		CLL [kkk][iii][jjj]= CL[kkk][iii][jjj];		QLL [kkk][iii][jjj]= QL[kkk][iii][jjj];		}
+	 			}
+	 		for (int kkk =V[i][0]+1; kkk< V[i][1]; kkk++) //Copy the other matrices between CL[V[i][0]] CL[V[i][1]].
+	 			for (int iii =0; iii< m; iii++) 
+	 			{	CLL [kkk][iii]= new int [CL[kkk][iii].length];			QLL [kkk][iii]= new int [QL[kkk][iii].length];	
+	 				for (int jjj =0; jjj< CL[kkk][iii].length; jjj++)  {		CLL [kkk][iii][jjj]= CL[kkk][iii][jjj];		QLL [kkk][iii][jjj]= QL[kkk][iii][jjj];		}
+	 			}
+	 		for (int kkk =V[i][1]+1; kkk< res1+1; kkk++) //Copy the other matrices after CL[V[i][1]].
+	 			for (int iii =0; iii< m; iii++) 
+	 			{	CLL [kkk-1][iii]= new int [CL[kkk][iii].length];			QLL [kkk-1][iii]= new int [QL[kkk][iii].length];	
+	 				for (int jjj =0; jjj< CL[kkk][iii].length; jjj++)  {		CLL [kkk-1][iii][jjj]= CL[kkk][iii][jjj];		QLL [kkk-1][iii][jjj]= QL[kkk][iii][jjj];		}
+	 			}
+	 		for (int iii =0; iii< m; iii++)//Copy the merged matrices. 
+ 			{		CLL [V[i][0]][iii]= new int [CMM[iii].length];		QLL [V[i][0]][iii]= new int [QMM[iii].length];	
+	 				for (int jjj =0; jjj< CMM[iii].length; jjj++)  {	CLL [V[i][0]][iii][jjj]= CMM[iii][jjj];		QLL [V[i][0]][iii][jjj]= QMM[iii][jjj]; 				}
+ 			}
+	 		for (int jjj =0; jjj< V[i][0]; jjj++)  
+    		{	RLL[jjj]= new int [R[jjj].length];   			NLL[jjj]= new int [L[jjj].length];
+    			for (int kkk= 0; kkk<R[jjj].length;kkk++)		{RLL[jjj][kkk]=R[jjj][kkk];	    		 NLL[jjj][kkk]=L[jjj][kkk];   		}
+    		}
+	    	for (int jjj=V[i][0]+1; jjj< V[i][1]; jjj++)  
+    		{	RLL[jjj]= new int [R[jjj].length];    			NLL[jjj]= new int [L[jjj].length];
+    			for (int kkk= 0; kkk<R[jjj].length;kkk++)    			{RLL[jjj][kkk]=R[jjj][kkk];	     NLL[jjj][kkk]=L[jjj][kkk];    	}
+    		}
+	    	for (int jjj=V[i][1]+1; jjj< res1+1; jjj++)  
+    		{	RLL[jjj-1]= new int [R[jjj].length];    			NLL[jjj-1]= new int [L[jjj].length];
+    			for (int kkk= 0; kkk<R[jjj].length;kkk++)    			{RLL[jjj-1][kkk]=R[jjj][kkk];	     NLL[jjj-1][kkk]=L[jjj][kkk];    	}
+    		}
+	    	for (int jjj =0; jjj< n1; jjj++)  
+	    		{RLL[V[i][0]][jjj]=R[V[i][0]][jjj];	    NLL[V[i][0]][jjj]=L[V[i][0]][jjj];	    		}
+	    	for (int jjj =n1; jjj< n1+n2; jjj++)  	{RLL[V[i][0]][jjj]=R[V[i][1]][jjj-n1];	    		NLL[V[i][0]][jjj]=L[V[i][1]][jjj-n1];	    		}
+
+	    	for (int cpi=0; cpi<res1; cpi++)//The first level of merging
+    		{	for (int cpj=0; cpj<m; cpj++)
+    			{	CL_ToBeReturned[cpi][cpj]= new int [CLL[cpi][cpj].length];  	QL_ToBeReturned[cpi][cpj]= new int [QLL[cpi][cpj].length];
+    				for (int cpk=0; cpk<CLL[cpi][cpj].length; cpk++)  {CL_ToBeReturned[cpi][cpj][cpk]= CLL[cpi][cpj][cpk];  QL_ToBeReturned[cpi][cpj][cpk]= QLL[cpi][cpj][cpk];  }
+    			}
+    			L_ToBeReturned[cpi]=new int [NLL[cpi].length];
+    			for (int cpj=0; cpj<NLL[cpi].length; cpj++)    			{		L_ToBeReturned[cpi][cpj]=NLL[cpi][cpj];        			}
+    			R_ToBeReturned[cpi]=new int [RLL[cpi].length];
+    			for (int cpj=0; cpj<NLL[cpi].length; cpj++)    			{		R_ToBeReturned[cpi][cpj]=RLL[cpi][cpj];        		}
+    		}
+	    	if (res1>1){//Two or more matrices are required to try further merging.
+		    	int res2=res1; 
+		    	res = res1; CL1 = CL_ToBeReturned; QL1 = QL_ToBeReturned; L1 = L_ToBeReturned; R1 = R_ToBeReturned;
+	    		res2 = TMMPSkernel(NLL,RLL, CLL, QLL, res1, m);//other levels of merging
+	    		if (res2<res1) {//More mergings are done.Record the merging.
+	        		res1 = res2;
+	        		CL_ToBeReturned=CLL;QL_ToBeReturned=QLL;L_ToBeReturned=NLL;R_ToBeReturned=RLL;
+	    		}//end of if (res2<res1)
+	    	}
+			if (res1<res){ 	res = res1; CL1 = CL_ToBeReturned; QL1 = QL_ToBeReturned; L1 = L_ToBeReturned; R1 = R_ToBeReturned;} 
+	    }//End of if (result)
+	}//End of For (i to total)
+//	CL = CL1; QL = QL1; L = L1; R = R1;
+	System.out.println ("CL1 after:"+res+" "+ m+" " +CL1[0][0].length);	
+	for (int k = 0; k < res; k++)
+	{for (int i = 0; i < m; i++) 		{	for (int j =0; j< CL1[k][i].length; j++)			{		System.out.print (CL1[k][i][j]);			System.out.print (" ");			}	} 		System.out.println ();	}
+	for (int cpi=0; cpi<res; cpi++)//The first level of merging
+	{	for (int cpj=0; cpj<m; cpj++)
+		{	CL[cpi][cpj]= new int [CL1[cpi][cpj].length];  	QL[cpi][cpj]= new int [QL1[cpi][cpj].length];
+			for (int cpk=0; cpk<CL1[cpi][cpj].length; cpk++)  { System.out.print (CL1[cpi][cpj][cpk]);
+			CL[cpi][cpj][cpk]= CL1[cpi][cpj][cpk];  QL[cpi][cpj][cpk]= QL1[cpi][cpj][cpk]; }
+		}
+	System.out.println ();
+		L[cpi]=new int [L1[cpi].length];
+		for (int cpj=0; cpj<L1[cpi].length; cpj++)    			{		L[cpi][cpj]=L1[cpi][cpj];        			}
+		R[cpi]=new int [R1[cpi].length];
+		for (int cpj=0; cpj<R1[cpi].length; cpj++)    			{		R[cpi][cpj]=R1[cpi][cpj];        		}
+	}
+	System.out.println ("CL after copying:"+res);	
+	for (int k = 0; k < res; k++)
+	{for (int i = 0; i < m; i++) 		{	for (int j =0; j< CL1[k][i].length; j++)			{		System.out.print (CL[k][i][j]);			System.out.print (" ");			}		} 		System.out.println ();	}
+	return res;
+	}
+	
+	public static int ProcessTMMPS(int []L, int [][] C, int [][][]RCL, int [][] Q,  int s, int m, int n)
+	{//Note: “:=” means assignment from right to left and “=” means //that the left is equal to the right.
+		int Z[][] = new int [m][n];
+		int CC[]= new int [n];
+		int D[]= new int [n];	//D is a vector for the difference between the number required current agents and the number of actual current agents for each role.
+		for (int j =0; j< n; j++) CC[j]=0;
+		//Step 1: Preparation		Z := C+Q;
+		for (int j =0; j< n; j++)
+		{	for (int i = 0; i < m; i++)
+			{ Z[i][j]=C[i][j]+Q[i][j];			CC[j]=CC[j]+Z[i][j];
+//			System.out.print (C[i][j]);		System.out.print (" ");	
+			}
+		D[j]=L[j]-CC[j];		if (D[j]>0) return 0;
+//		System.out.println ();
+		}
+	int v[] = new int [n];// v[j] is the number of potential agents for role j
+	int A[][] = new int[m][n];//the column j of A is the indeces of qualified agents for role j
+	
+	for (int i = 0; i<n; i++) v[i]=0;
+	for (int j = 0; j<n; j++)
+	{int cnt =0;
+			for (int k = 0; k<m; k++)
+				{	int temp = C[k][j] + Q[k][j];
+      				v[j]=v[j]+temp;
+					if (temp ==1) {						A[cnt][j]=k;					cnt++;				}
+				}
+	}
+	int AllTotal=1;
+	int comNumber[]= new int [n];
+	int [][][]totalCom=new int [n][m][1];
+	for (int k = 0; k<n; k++)//Get n combination lists U each element of U is a matrix of combinations for each role.
+			{
+			int [] B= new int [v[k]];
+			for (int j = 0; j<v[k]; j++)//B[] is a list of potential agents for role k 
+				B[j]=A[j][k];
+			CombinationGenerator CG = new CombinationGenerator (v[k], L[k]);
+			int total = CG.getTotal().intValue();
+			int[] indices;
+		//	int [][] combination =new int [total][m];
+			totalCom[k]=new int [total][m];
+			for (int i = 0; i<total; i++)
+				for (int j =0; j<m; j++) //combination [i][j]=0;
+					totalCom[k][i][j]=0;
+			int tt =0; 
+			while (CG.hasMore ()) {			     indices = CG.getNext ();
+		         for (int i = 0; i < indices.length; i++) {				  totalCom[k][tt][B[indices[i]]] =1;			     }
+		  	     tt++;
+			}
+			comNumber[k]=total;
+			AllTotal*=total;
+		}
+	int [] sn= new int [n];
+	int FinalCL[][][][]= new int[AllTotal][n][m][];
+	int FinalQL[][][][]= new int [AllTotal][n][m][];
+	int FinalScale[]= new int [AllTotal];
+	int [][][] FinalRL = new int [AllTotal][][];
+	for (int i=0; i< n ; i++)		{sn[i]=0; }
+	int CLIndices[][] = new int [AllTotal][n]; 
+	int tempNum=1;
+	int circNum =AllTotal;
+	for (int in = n-1; in>=0; in--)
+	{	int all = 0;
+		if (in<n-1) tempNum *= comNumber[in+1];
+		circNum /=comNumber[in];
+		for (int ii =0; ii<circNum; ii++ )
+			for (int jj =0; jj<comNumber[in]; jj++ )
+				for (int kk =0; kk<tempNum; kk++)				{CLIndices[all][in] = jj;				all++;				}
+	}
+//	System.out.println ("Total COM:");	
+	for (int jj=0; jj<n; jj++)	{	for (int ii=0; ii<comNumber[jj]; ii++)  for (int kk=0; kk<m; kk++)			System.out.print (totalCom[jj][ii][kk]+" ");			System.out.println ();	}
+//	System.out.println ("Index:");	
+	for (int ii=0; ii<AllTotal; ii++) {	for (int jj=0; jj<n; jj++)		System.out.print (CLIndices[ii][jj]+" ");			System.out.println ();	}
+	for (int ii=0; ii<AllTotal; ii++)
+	{
+		int CL[][][]= new int [n][m][1];
+		int QL[][][]= new int [n][m][1];
+		for (int jj=0; jj<n; jj++)
+			for (int kk=0; kk<m; kk++)
+				{				CL[jj][kk][0]=totalCom[jj][CLIndices[ii][jj]][kk];				QL[jj][kk][0]=Z[kk][jj]-CL[jj][kk][0];			}
+//	System.out.println ("Before Kernel:"+ii);	
+//	for (int jj=0; jj<n; jj++)	{	for (int kk=0; kk<m; kk++)			System.out.print (CL[jj][kk][0]+" ");			System.out.println ();	}
+//	System.out.println ();	
+//	for (int jj=0; jj<n; jj++)	{	for (int kk=0; kk<m; kk++)			System.out.print (QL[jj][kk][0]+" ");			System.out.println ();	}
+//	System.out.println ("Before Kernel");
+	int [][]LL=new int [s][1];
+	for (int jj=0; jj<s; jj++) LL[jj][0]=L[jj];
+	int [][]RL=new int [s][1];
+	for (int jj=0; jj<s; jj++) RL[jj][0]=jj;
+			int result =TMMPSkernel (LL, RL, CL, QL, s, m);
+//			System.out.println ("After  Kernel");	
+//			for (int jj=0; jj<n; jj++)			{	for (int kk=0; kk<m; kk++)					System.out.print (CL[jj][kk][0]+" ");					System.out.println ();			}
+//	System.out.println ();	
+//		for (int jj=0; jj<n; jj++)			{	for (int kk=0; kk<m; kk++)					System.out.print (QL[jj][kk][0]+" ");					System.out.println ();			}
+//			System.out.println ("After  Kernel: "+ii);	
+			//Record each result.
+			FinalRL[ii]=new int [result][];
+	    	for (int cpi=0; cpi<result; cpi++)//The first level of merging
+    		{	for (int cpj=0; cpj<m; cpj++)
+    			{	FinalCL[ii][cpi][cpj]= new int [CL[cpi][cpj].length];  	FinalQL[ii][cpi][cpj]= new int [QL[cpi][cpj].length];
+    				for (int cpk=0; cpk<CL[cpi][cpj].length; cpk++)  {FinalCL[ii][cpi][cpj][cpk]= CL[cpi][cpj][cpk];  FinalQL[ii][cpi][cpj][cpk]= QL[cpi][cpj][cpk];  }
+    			}
+//    			L_ToBeReturned[cpi]=new int [NLL[cpi].length];
+//    			for (int cpj=0; cpj<NLL[cpi].length; cpj++)    			{		L_ToBeReturned[cpi][cpj]=NLL[cpi][cpj];        			}
+    			FinalRL[ii][cpi]=new int [RL[cpi].length];
+    			for (int cpj=0; cpj<RL[cpi].length; cpj++)    			{		FinalRL[ii][cpi][cpj]=RL[cpi][cpj];        		}
+    		}
+/*			FinalCL[ii]=CL;
+			FinalQL[ii]= QL;
+			FinalRL[ii]= RL;
+*/			FinalScale[ii] = result;
+	}//End of For (AllTotal)
+	int ResultScale = n;
+	int ResultIndex = 0;
+	for (int i =0; i< AllTotal;i++)
+		if (FinalScale[i]<ResultScale) {ResultScale = FinalScale[i]; ResultIndex=i;}
+		//The results is in FinalCL[ResultIndex] and ResultScale;	
+	s = ResultScale;
+  	for (int kk=0; kk<s; kk++)
+  		for (int ii=0; ii<m; ii++)
+  			for (int jj =0; jj<n; jj++)
+  				RCL[kk][ii][jj]=0;
+	for (int kk=0; kk<s; kk++)
+  		for (int ii=0; ii<m; ii++)
+  			for (int jj =0; jj<FinalCL[ResultIndex][kk][ii].length; jj++)
+  			{  RCL[kk][ii][FinalRL[ResultIndex][kk][jj]]= FinalCL[ResultIndex][kk][ii][jj];
+  			}
+	//for (int k = 0; k < s; k++)
+	//{for (int i = 0; i < m; i++) 		{	for (int j =0; j< n; j++)			{		System.out.print (RCL[k][i][j]);			System.out.print (" ");			}		System.out.println ();		} 		System.out.println ();	}
+     return s;
+}
+
+//Example 1: Fig. 11
+/*public static void main(String[] args) {
+			int L[]= new int [3];
+			int C[][] =new int [5][3];
+			int Q[][] =new int [5][3];
+			
+			//	......................
+			L[0]= 3; L[1]=2; L[2]=3;
+		    C[0][0]=1;		C[1][0]=1;		C[2][1]=1;		C[3][2]=1; C[4][2]=1;
+			Q[1][2]=1; 	Q[2][0]=1;    Q[3][0]=1;	Q[3][1]=1; Q[4][1]=1;
+			int n1, n2;
+			n1 = 5; n2 = 3;
+			System.out.println ("Before Transferring...");
+			System.out.println ("The Current Role Matrix:");
+			for (int i = 0; i < n1; i++)
+			{	for (int j =0; j< n2; j++)
+				{
+				System.out.print (C[i][j]);
+				System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+			System.out.println ("The Qualified Role Matrix:");
+		for (int i = 0; i < n1; i++)
+		{	for (int j =0; j< n2; j++)
+			{
+			System.out.print (Q[i][j]);
+			System.out.print (" ");
+			}
+		System.out.println ();
+		}
+		System.out.println ();
+		int s=n2;
+		int [][][]CL= new int [s][n1][n2]; 
+		int res=ProcessTMMPS(L, C, CL, Q, s,  n1, n2);
+		if (res!=0) 
+				System.out.println ("Success....Scale = "+res+"\n After Transferring...");
+		else 
+			System.out.println ("Fail...\n");
+		System.out.println ("The Current Role Matrix List:");
+		for (int k = 0; k < res; k++)
+			{for (int i = 0; i < n1; i++)				
+			  {	for (int j =0; j< n2; j++){	System.out.print (CL[k][i][j]);	System.out.print (" ");	} 		System.out.println ();		}	System.out.println ();
+			}
+      }
+}
+*/
+//	Example 2: 4 roles, 5 agents
+/*	public static void main(String[] args) {
+				int L[]= new int [4];
+				int C[][] =new int [5][4];
+				int Q[][] =new int [5][4];
+				//	......................
+				L[0]= 2; L[1]=1; L[2]=2; L[3]=3;
+			    C[0][0]=1;		C[1][0]=1;		C[2][1]=1;		C[3][2]=1; C[4][3]=1;
+			    Q[1][2]=1; Q[2][0]=1; 	Q[2][3]=1;    Q[3][1]=1;	Q[3][3]=1; Q[4][2]=1;
+				int n1, n2;
+				n1 = 5; n2 = 4;
+				System.out.println ("Before Transferring...");
+				System.out.println ("The Current Role Matrix:");
+				for (int i = 0; i < n1; i++)
+				{	for (int j =0; j< n2; j++)				{				System.out.print (C[i][j]);					System.out.print (" ");		}	System.out.println ();				}
+				System.out.println ();
+				System.out.println ("The Qualified Role Matrix:");
+			for (int i = 0; i < n1; i++)
+			{	for (int j =0; j< n2; j++)				{				System.out.print (Q[i][j]);				System.out.print (" ");				}			System.out.println ();			}
+			System.out.println ();
+			int s=n2;
+			int [][][]CL= new int [s][n1][n2]; 
+			int	res = ProcessTMMPS(L, C, CL, Q, s,  n1, n2);
+			if (res != 0) 
+				System.out.println ("Success....Scale = "+res+"\n After Transferring...");
+			else 
+				System.out.println ("Fail...\n");
+			System.out.println ("The Current Role Matrix List:");
+			for (int k = 0; k < res; k++)
+				{for (int i = 0; i < n1; i++)
+					{	for (int j =0; j< n2; j++)						{						System.out.print (CL[k][i][j]);						System.out.print (" ");						}
+					System.out.println ();
+					}
+					System.out.println ();
+				}
+	      }
+	}
+	*/
+	/*
+	
+	public static TestResult RandomTest() {
+		Random generator = new Random();
+		int n1, n2;
+		n1 = 10; n2 = 5;
+		int L[]= new int [n2];
+		int C0[][] =new int [n1][n2];
+		int Q[][] =new int [n1][n2];
+		//	......................
+		int sum =0;
+		do {
+		for (int i =0; i<n2; i++)
+		{ 	L[i]=generator.nextInt(3)+2;	
+			sum +=L[i];
+		}
+		}while (sum <n1);
+		sum =0;
+		int a[]=new int [n1];
+		int r[]=new int [n2];
+		
+		do {
+		for (int i = 0; i < n1; i++)			
+			{if (a[i]==0)
+				for (int j =0; j< n2; j++)
+				{	if (r[j]<L[j]) C0[i][j]=generator.nextInt(2);				if (C0[i][j]==1) {a[i]=1; r[j] ++; sum ++; break;}			}			
+			}
+		}while (sum <n1);
+//------
+	System.out.print (sum+" ");
+		for (int i = 0; i < n1; i++)
+			System.out.print (a[i]+" ");
+
+		for (int j =0; j< n2; j++)
+		{ int cnt=0;
+			for (int i = 0; i < n1; i++)
+			{	if (C0[i][j]==1) cnt++;
+				if (cnt==L[j])
+				{	for (int k = i+1; k < n1; k++)	C0[k][j]=0;
+				break;
+				}
+			}
+		}
+//-------------
+	for (int i = 0; i < n1; i++)
+		{	for (int j =0; j< n2; j++)
+			{
+			if (C0[i][j]==0)			Q[i][j]=generator.nextInt(2);
+			}
+		}
+		for (int j =0; j< n2; j++)
+		{ int cnt=0;
+			for (int i = 0; i < n1; i++)
+			{	if (Q[i][j]==1) cnt++;
+				if (cnt>=L[j])
+				{	for (int k = i+1; k < n1; k++)	Q[k][j]=0;
+				break;
+				}
+			}
+		}
+
+	System.out.println ("Before Transferring...");
+		System.out.println ("The Current Role Matrix:");
+		
+		for (int i =0; i<n2; i++)
+			System.out.print (L[i]+" ");
+		System.out.println ();
+
+		for (int i = 0; i < n1; i++)
+		{	for (int j =0; j< n2; j++)
+			{
+			System.out.print (C0[i][j]);
+			System.out.print (" ");
+			}
+		System.out.println ();
+		}
+		System.out.println ();
+		System.out.println ("The Qualified Role Matrix:");
+	for (int i = 0; i < n1; i++)
+	{	for (int j =0; j< n2; j++)
+		{
+		System.out.print (Q[i][j]);
+		System.out.print (" ");
+		}
+	System.out.println ();
+	}
+	System.out.println ();
+	TestResult tr = new TestResult();
+	int [][][]CL= new int [n2][n1][n2]; 
+//	int [][][]QL= new int [n2][n1][n2]; 
+	int s = n2;
+	long t1 = System.nanoTime();
+	tr.scale = ProcessTMMPS(L, C0, CL, Q,  s, n1, n2);
+	long t2 = System.nanoTime();
+	double diff = (double)(t2-t1)/1000000;
+	tr.time = diff;
+	System.out.println ("Time = "+diff+"ms");
+	System.out.println ("Scale ="+tr.scale);
+	System.out.println ("The Current Role Matrix List:");
+	for (int k = 0; k < tr.scale; k++)
+		{for (int i = 0; i < n1; i++)
+			{	for (int j =0; j< n2; j++)						{						System.out.print (CL[k][i][j]);						System.out.print (" ");						}
+			System.out.println ();
+			}
+			System.out.println ();
+		}
+	return tr;
+	}
+	public static void main(String[] args) {
+		int num = 100;
+		TestResult []TR=new TestResult [num]; 
+		for (int i = 0; i<num; i++)
+		{	TR [i]=RandomTest();
+		}
+		for (int i = 0; i<num; i++)
+		{System.out.print (TR[i].scale);
+		System.out.println (" "+TR[i].time);
+		}
+	}
+	}
+	
+	*/
+	
+//	Example 1: Hockey 2
+/*	public static void main(String[] args) {
+				int L[]= new int [3];
+				int C[][] =new int [6][3];
+				int Q[][] =new int [6][3];
+				
+				//	......................
+				L[0]= 3; L[1]=2; L[2]=1;
+//			    C[0][0]=1;		C[1][0]=1;		C[2][1]=1;		C[3][2]=1; C[4][2]=1;
+				Q[0][0]=1; 	Q[1][0]=1;    Q[3][0]=1;	
+				Q[2][1]=1; 	Q[3][1]=1;
+				Q[4][2]=1; 	Q[5][2]=1;
+				int n1, n2;
+				n1 = 6; n2 = 3;
+				System.out.println ("Before Transferring...");
+				System.out.println ("The Current Role Matrix:");
+				for (int i = 0; i < n1; i++)
+				{	for (int j =0; j< n2; j++)
+					{
+					System.out.print (C[i][j]);
+					System.out.print (" ");
+					}
+				System.out.println ();
+				}
+				System.out.println ();
+				System.out.println ("The Qualified Role Matrix:");
+			for (int i = 0; i < n1; i++)
+			{	for (int j =0; j< n2; j++)
+				{
+				System.out.print (Q[i][j]);
+				System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+			int s=n2;
+			int [][][]CL= new int [s][n1][n2]; 
+			int res=ProcessTMMPS(L, C, CL, Q, s,  n1, n2);
+			if (res!=0) 
+					System.out.println ("Success....Scale = "+res+"\n After Transferring...");
+			else 
+				System.out.println ("Fail...\n");
+			System.out.println ("The Current Role Matrix List:");
+			for (int k = 0; k < res; k++)
+				{for (int i = 0; i < n1; i++)				
+				  {	for (int j =0; j< n2; j++){	System.out.print (CL[k][i][j]);	System.out.print (" ");	} 		System.out.println ();		}	System.out.println ();
+				}
+	      }
+	}
+*/
+	
+//	Example 2: 3 roles, 5 agents (Fig. 14)
+	public static void main(String[] args) {
+						int L[]= new int [3];
+						int C[][] =new int [5][3];
+						int Q[][] =new int [5][3];
+						//	......................
+/*						L[0]= 3; L[1]=2; L[2]=3;
+					    C[0][0]=1;		C[1][0]=1;		C[2][1]=1;		 C[4][2]=1;
+					    Q[1][2]=1;	Q[2][0]=1;		Q[3][0]=1;		Q[3][1]=1;Q[3][2]=1;
+*/
+						L[0]= 2; L[1]=1; L[2]=2;
+					    C[1][1]=1;		C[4][2]=1;
+					    Q[0][1]=1; 	Q[1][2]=1;	Q[2][0]=1;		Q[3][0]=1;	Q[3][2]=1;Q[4][0]=1;
+						int n1, n2;
+						n1 = 5; n2 = 3;
+						System.out.println ("Before Transferring...");
+						System.out.println ("The Current Role Matrix:");
+						for (int i = 0; i < n1; i++)
+						{	for (int j =0; j< n2; j++)				{				System.out.print (C[i][j]);					System.out.print (" ");		}	System.out.println ();				}
+						System.out.println ();
+						System.out.println ("The Qualified Role Matrix:");
+					for (int i = 0; i < n1; i++)
+					{	for (int j =0; j< n2; j++)				{				System.out.print (Q[i][j]);				System.out.print (" ");				}			System.out.println ();			}
+					System.out.println ();
+					int [][][]CL= new int [n2][n1][n2]; 
+//					int [][][]QL= new int [n2][n1][n2]; 
+					int s = n2;
+					int	res = ProcessTMMPS(L, C, CL, Q, s, n1, n2);
+					if (res != 0) 
+						System.out.println ("Success....Scale = "+res+"\n After Transferring...");
+					else 
+						System.out.println ("Fail...\n");
+					System.out.println ("The Current Role Matrix List:");
+					for (int k = 0; k < res; k++)
+						{for (int i = 0; i < n1; i++)
+							{	for (int j =0; j< n2; j++)						{						System.out.print (CL[k][i][j]);						System.out.print (" ");						}
+							System.out.println ();
+							}
+							System.out.println ();
+						}
+			      }
+			}
