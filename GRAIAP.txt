@@ -3,7 +3,10 @@
  *Adopted from an implementation of Hungarian algorithm (Unkown Author).
  *Author: Dr. Haibin Zhu, 2017
  *Please cite:
- *H. Zhu, H. Ma, and H. Zhang, “Acquire the Preferred Position in a Team,” The IEEE Conf. of Computer-Supported Cooperative Work in Design, Nanjing, China, May 9-11, 2018, pp. 116-121.
+ [1] H. Zhu, H. Ma, and H. Zhang, “Acquire the Preferred Position in a Team,” The IEEE Conf. of Computer-Supported Cooperative Work in Design, Nanjing, China, May 9-11, 2018, pp. 116-121.
+ [2] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [3] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, 2006, pp. 578-589. 
+ [4] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
  **/
 import static java.util.Arrays.*;
 import static java.lang.Math.*;
