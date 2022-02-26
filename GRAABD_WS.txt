@@ -4,7 +4,11 @@
  *  by Gary Baker (GPL v3), 2007
  * @author Haibin Zhu, 2016
  *Please cite:
- *H. Zhu, and Y. D. Zhu, "Group Role Assignment with Agents' Busyness Degrees", The IEEE Int'l Conf. on Systems, Man and Cybernetics (SMC'17), Banff, Canada, Oct. 5-8, 2017, pp. 3201-3206.
+ [1] H. Zhu, and Y. D. Zhu, "Group Role Assignment with Agents' Busyness Degrees", The IEEE Int'l Conf. on Systems, Man and Cybernetics (SMC'17), Banff, Canada, Oct. 5-8, 2017, pp. 3201-3206.
+ [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+ [3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [4] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589.
+
 */
 
 import java.text.DecimalFormat;
