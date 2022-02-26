@@ -1,8 +1,12 @@
 /**
- * An implementation of Group Multi-Role Assignment with Conflicting Roles.
+ * An implementation of Group Multi-Role Assignment with Coupled Roles.
  * @author Haibin Zhu, 2019
  * Please cite:
- * [7]	H. Zhu, “Group Multi-role Assignment with Conflicting Roles and Agents,” IEEE/CAA J. of Automatica Sinica, vol. 7, no. 6, Nov. 2020, pp. 1498-1510.
+ [1] H. Zhu, “Group Multi-Role Assignment with Coupled Roles,” The 16th IEEE Int’l Conf. on Networking, Sensing, and Control, Banff, Canada, May 9-11, 2019, pp.281-286. 
+ [2] H. Zhu, “Avoiding Conflicts by Group Role Assignment”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 46, no. 4, April 2016, pp. 535-547. 
+ [3] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+ [4] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [5] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589.
  */
 
 import java.io.BufferedWriter;
