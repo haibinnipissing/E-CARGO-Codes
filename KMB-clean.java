@@ -4,9 +4,12 @@
 *  by Gary Baker (GPL v3), 2007
  * @author Dongning Liu, Siqin Zhang, and Haibin Zhu 2009.
  * Please cite:
- *[1] H. Zhu, D. Liu, S. Zhang, S. Teng, and Y. Zhu, “Solving the Group Multi-Role Assignment Problem by Improving the ILOG Approach”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 47, no. 12, Dec. 2017, pp. 3418-3424. 
- *[2] H. Zhu, D. Liu, S. Zhang, Y. Zhu, L. Teng, S. Teng, “Solving the Many to Many Assignment Problem by Improving the Kuhn-Munkres Algorithm with Backtracking”, Theoretical Computer Science, vol. 618, March 2016, pp. 30-41. 
- */
+ [1] H. Zhu, D. Liu, S. Zhang, S. Teng, and Y. Zhu, “Solving the Group Multi-Role Assignment Problem by Improving the ILOG Approach”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 47, no. 12, Dec. 2017, pp. 3418-3424. 
+ [2] H. Zhu, D. Liu, S. Zhang, Y. Zhu, L. Teng, S. Teng, “Solving the Many to Many Assignment Problem by Improving the Kuhn-Munkres Algorithm with Backtracking”, Theoretical Computer Science, vol. 618, March 2016, pp. 30-41. 
+ [3] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+ [4] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [5] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589.
+ /
 import java.text.DecimalFormat;
 import java.util.*;
 
