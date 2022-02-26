@@ -2,7 +2,10 @@
  * This program is to solve the Most Economic Redudent Assignment problem.
  * Author: Dr. Haibin Zhu, 2018
  * Please cite:
- * H. Zhu, “The Most Economical Redundant Assignment”, The IEEE Int'l Conf. on Systems, Man and Cybernetics (SMC'19), Bari, Italy, Oct. 6-9, 2019, pp. 146-151.
+ [1] H. Zhu, “The Most Economical Redundant Assignment”, The IEEE Int'l Conf. on Systems, Man and Cybernetics (SMC'19), Bari, Italy, Oct. 6-9, 2019, pp. 146-151.
+ [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+ [3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [4]	H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589.
  * 
 */
 
