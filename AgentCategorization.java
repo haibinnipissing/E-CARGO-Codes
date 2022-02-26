@@ -2,7 +2,10 @@
 /**
  * Using Simulated Annealing and GRA to solve the Agent Classification Problem
  * Please cite: 
- * H. Zhu, “Agent Categorization with Group Role Assignment with Constraints (GRA+) and Simulated Annealing (SA),” IEEE Trans. on Computational Social Systems, vol. 7, no. 5, Oct. 2020, pp. 1234-1245.  
+ [1] H. Zhu, “Agent Categorization with Group Role Assignment with Constraints (GRA+) and Simulated Annealing (SA),” IEEE Trans. on Computational Social Systems, vol. 7, no. 5, Oct. 2020, pp. 1234-1245.  
+ [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+ [3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [4] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589.
  * An implementation of Agent Categorization with Simulated Annealing Algorithm. 
  * @author Haibin Zhu, Jan. 13, 2020
 */
