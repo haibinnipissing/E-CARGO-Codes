@@ -1,0 +1,367 @@
+
+/*
+This Program is used to conduct simulations of 80/20 distribution by GRA. 
+It needs the IBM CPLEX ILOG Optimization Package.
+
+Please cite:
+[1]	H. Zhu, “Social Development Paradox: An E-CARGO Perspective on the Formation of the Pareto 80/20 Distribution,” IEEE Trans. on Computational Social Systems,2022 (In Press), avail: https://ieeexplore.ieee.org/document/9576894 .
+[2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+[3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+[4]	H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589. 
+*/
+
+import ilog.concert.*;
+import ilog.cplex.*;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.*;
+import java.io.File; 
+
+import java.text.DecimalFormat;
+import java.util.*;
+
+class TestResult
+{
+	public double sigma;
+	public double q20;
+	public double per;
+	public TestResult()
+	{
+		sigma=0;
+		q20=0;
+		per=0;
+	}
+}
+
+class TeRe
+{
+	public int max;
+	public int min;
+	public int ave;
+	public TeRe()
+	{
+		max=0;
+		ave=0;
+		min=0;
+	}
+}
+class GRA_ILOG {
+	
+	private int m;	//number of agents
+	private int n;	//number of roles
+	
+	private double[] Q;	//Qualification matrix
+	private int[] L;	//Role Requirement array
+	private int[][] A;  //Assignment array
+	
+	DecimalFormat df = new DecimalFormat("0.00");
+	
+	double optimized_result = 0;
+	boolean bILOG_result;
+	
+	public GRA_ILOG(int nagent, int nrole, double[][] QM, int[]RA)
+	{
+		m = nagent;
+		n = nrole;
+		
+		Q = new double[m*n];
+		for(int i=0, r=0; r<m; r++) for (int c=0; c<n; c++){Q[i] = QM[r][c]; i++; }
+		
+		L = new int[n];
+		for(int j=0; j<n; j++) {L[j] = RA[j]; }
+		
+		A = new int[m][n];
+		for(int r=0; r<m; r++) for (int c=0; c<n; c++) A[r][c] = 0;
+		}
+	
+	public double resolve(int[][]TR)
+	{
+		try
+		{
+			//Creat cplex obj
+			IloCplex cplex = new IloCplex();	//initialize the cplex object
+			
+			IloIntVar[]x = cplex.intVarArray(m*n, 0, 1);	//initialize the variables array under cplex.
+			cplex.addMaximize(cplex.scalProd(x, Q));	//add the optimize objective to cplex.
+			
+			//Add Constraint 1: L[j];
+			
+			for (int j = 0; j<n; j++)
+			{
+				IloLinearNumExpr exprReqConstraint = cplex.linearNumExpr();
+				for (int i = 0; i<m; i++)
+				{
+					exprReqConstraint.addTerm(1, x[j+i*n]);
+				}
+				cplex.addEq(exprReqConstraint, L[j]);				
+			}
+			
+			//Constrain type 2: LA[i] The agent limit constrains. 
+			
+			for (int i=0; i<m; i++) // for each agent
+			{
+				IloLinearNumExpr exprAgentLimitConstraint = cplex.linearNumExpr();
+				for (int j = 0; j<n; j++)
+				{
+					exprAgentLimitConstraint.addTerm(1, x[j+i*n]);
+				}		
+				cplex.addLe(exprAgentLimitConstraint, 1);				
+			}
+						
+			//Solve LP
+			if (cplex.solve()) 
+			{
+				bILOG_result = true;
+				optimized_result = cplex.getObjValue();			
+				double[] val = cplex.getValues(x);
+				int ncols = cplex.getNcols();				
+				for (int j=0; j<ncols; j++)
+				{
+					A[j/n][j%n] = (int)val[j]; 
+					TR[j/n][j%n] = A[j/n][j%n];
+				}
+				cplex.end();
+				
+			}
+			else
+			{
+				cplex.end();
+				bILOG_result = true;
+			}	
+			//long t2 = System.nanoTime();
+			//time[0] = (t2-t1)/1000000;
+		}
+		catch (IloException e){System.err.println("Concert exception" + e + " caught");}
+		
+		
+		return(optimized_result);
+	}
+	
+	public double getOptimizedResult()
+	{
+		return optimized_result;
+		
+	}
+};
+
+class roleValue{
+	int i;
+	int j;
+	double q;
+	roleValue(){
+		i=0; j =0; q =0;
+	}	
+	roleValue(int x, int y, double z){
+		i =x; j = y; q =z;
+	}
+	roleValue(roleValue rv){
+		i =rv.i; j =rv.j; q =rv.q;
+	}
+}
+
+public class P8020m {
+	static DecimalFormat df = new DecimalFormat("0.00");
+	 public static  void printDMatrix (double [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0.00");
+			for (int i = 0; i < m; i++)
+			{	for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (" ");
+				}
+			System.out.println ();
+			}
+			System.out.println ();
+		}	
+		 public static  void printIMatrix (int [][]x, int m, int n){
+			DecimalFormat tw = new DecimalFormat("0");
+			System.out.print("{");
+			for (int i = 0; i < m; i++)
+			{	System.out.print("{");
+				for (int j =0; j< n; j++)
+				{
+				System.out.print (tw.format(x[i][j]));		System.out.print (", ");
+				}
+				System.out.println("},");
+			}
+			System.out.println ("};");
+		}
+	public static double getNewRV(roleValue []rv, roleValue []newrv, int m1, int m2) {
+		//Get the first 20% of agents with the largest assigned Q values to newrv (m2) from rv (m1) 
+		double q20=0;
+		int i3=0;
+			for (int i2 =0; i2< m1; i2++) {
+				if (rv[i2]!=null) {
+					newrv[i3]=new roleValue(rv[i2]);	
+					for (int i1 = i2+1; i1< m1; i1++) {
+						if (rv[i1]!=null) {
+							if (rv[i1].q>newrv[i3].q) {
+								roleValue temp =rv[i1];
+								rv[i1]=newrv[i3];								
+								newrv[i3]=temp;
+								rv[i2]=newrv[i3];//Keep rv the same as new rv for the first 20%.
+							}
+						}
+					}
+					if (newrv[i3]!=null) {
+						q20+=newrv[i3].q; 
+						i3++;
+						if (i3>=m2) break;
+					}
+					else System.out.println("Error!!!!!!!!!!!!!!!!");
+				}
+			}
+	//	for (int i = 0; i < m2; i++)//Suppose 
+	//		System.out.print ("<"+newrv[i].j+", "+ df.format(newrv[i].q)+"> ");
+	//	System.out.println();
+		return q20;			
+	}
+
+	public static double CollectTwenty(double [][]Q, int [][]T, int m, int n, roleValue [] newRV) {
+		double res =0;
+		int m_20 = (int)(m*0.2);
+		roleValue []RV=new roleValue[m];
+		for(int i=0; i<m; i++)
+		{
+			for(int j=0; j<n; j++)
+			{
+				if (T[i][j]==1) RV[i]=new roleValue(i, j, Q[i][j]);
+			}
+		}
+	//	for (int i = 0; i < m; i++)//Suppose 
+	//		System.out.print ("<"+RV[i].j+", "+ df.format(RV[i].q)+"> ");
+		System.out.println();
+		res=getNewRV (RV, newRV, m, m_20);
+	//	for (int i = 0; i < m_20; i++)//Suppose 
+	//		System.out.print ("<"+RV[i].j+", "+ df.format(RV[i].q)+"> ");
+	//	System.out.println();
+		return res;
+	}
+	public static void ReviseQ(double [][]Q, int [][]T, double []le, int m, int n, double rate) {
+		for(int i=0; i<m; i++)
+		{
+			for(int j=0; j<n; j++)
+			{
+				if (1==T[i][j]) Q[i][j]=Q[i][j]*(1+le[i])*rate;
+				else Q[i][j]=Q[i][j]*(1+le[i]);
+			}
+		}
+	}
+	public static void ReviseQ1(double [][]Q, int [][]T, double []le, int m, int n, double rate) {
+		//A new way to adjust the Q matrix, i.e., delta impacts both roles assigned or not.  
+		for(int i=0; i<m; i++)
+		{
+			for(int j=0; j<n; j++)
+			{
+				 Q[i][j]=Q[i][j]*(1+le[i])*rate;
+			}
+		}
+	}
+	
+//private static TestResult randamtest(int m, int n, int r_limit, int a_limit) {
+	public static void main(String[] args)
+	{
+	DecimalFormat df = new DecimalFormat("0.00");
+	Random generator = new Random();
+	TeRe tere[]=new TeRe[10];//To store the 10 results for 10 different ms.
+	double rate = 1.1; //The change rate of Qs when re-assignment is conducted. 
+	try 
+	{
+		File myObj = new File("Result"); 
+	    myObj.delete();
+		BufferedWriter out = new BufferedWriter(new FileWriter(("Result"), true));
+		for (int ll =0; ll<10; ll++) {
+			int m=172+ll*16;//16 =  156*10%.
+			int n = 4;
+			int L[]= {1, 5, 25, 125};
+			int [] ta=new int [100];
+			for (int kk=0;kk<100;kk++) {//For 100 random initial Qs and LEs.
+				System.out.println("Q"+kk+" is created!");
+				double [][]Q=new double [m][n];	
+				double []LE=new double [m];		
+				out.write("Initial Q"+kk+": \n");	// Random Q
+				for(int r=0; r<m; r++){ for(int c=0; c<n; c++){
+					Q[r][c] = generator.nextDouble();//Determines the range of Q
+					out.write(df.format(Q[r][c]) + " ");
+					}
+					out.write("\n");
+				}
+				// Random LE
+				out.write("LE:\n");
+				for(int i = 0; i<m; i++) {
+					LE[i]=generator.nextDouble()-0.5;//Determines the range of LE			
+					out.write(""+LE[i]);
+				}		
+				out.write("\n");
+
+				int[][] T = new int[m][n];
+				//Init ILOG and resolve
+				double v=0.0f;
+				int RA = 200;//Assume there are at most RA times of re-assignment.
+				TestResult []tr = new TestResult[RA];
+				for (int i = 0; i < m; i++)//Suppose 
+					System.out.print (" "+df.format(LE[i]));
+				System.out.println ();
+				int k=0;
+				//Role re-assignment to see when 80/20 happens.
+				do {
+					tr[k]=new TestResult();	
+					GRA_ILOG ILOG = new GRA_ILOG(m, n, Q, L);
+					v = ILOG.resolve(T);
+					out.write("T: \n");
+					for(int r=0; r<m; r++){	for(int c=0; c<n; c++){
+						out.write(" "+T[r][c] + " ");
+						}
+						out.write("\n");
+					}
+					out.write("\n");
+					int m_20=(int)(m*0.2);
+					roleValue [] newRV = new roleValue[m_20];
+					double q20=CollectTwenty(Q, T, m, n, newRV);
+					out.write("Top 20 agents ("+(k+1)+"):\n");
+					for(int r=0; r<m_20; r++){	
+						out.write(" " + newRV[r].i+" "+ newRV[r].j+" "+ df.format(newRV[r].q)+"\n");
+					}
+					out.write("\n");
+					tr[k].sigma=v;
+					tr[k].q20=q20;
+					tr[k].per=q20/v;
+					ReviseQ1(Q, T, LE, m, n, rate);
+					out.write("Q"+(k+1)+":\n");
+					for(int r=0; r<m; r++){	for(int c=0; c<n; c++){
+						out.write(df.format(Q[r][c]) + " ");
+						}
+						out.write("\n");
+					}
+					k++;
+					System.out.println ("Re-Assignment "+k);	
+				} while (tr[k-1].per<0.8);
+				for ( int k1 = 0; k1 < k; k1++)//Suppose 
+					System.out.println (" "+k1+": "+df.format(tr[k1].sigma)+" "+df.format(tr[k1].q20)+" "+df.format(tr[k1].per));
+				System.out.println();
+				ta[kk]=k-1;
+			}
+			//Collect the data for 100 random initial Qs
+			int min =1000, max=-100;
+			int ave=0;
+			for ( int kk = 0; kk < 100; kk++) {
+				System.out.println (" "+ta[kk]);
+				if (ta[kk]>max) max=ta[kk];
+				if (ta[kk]<min) min=ta[kk];
+				ave+=ta[kk];
+			}
+			tere[ll]=new TeRe();
+			tere[ll].max=max;
+			tere[ll].ave=ave/100;
+			tere[ll].min=min;
+		}
+		for ( int ll = 0; ll < 10; ll++)//Collect all the data for 10 different ms. 
+			out.write (" "+(172+ll*16)+" "+tere[ll].max+" "+tere[ll].ave+" "+tere[ll].min+"\n");
+		out.write("\n");
+		out.close();
+	}
+	catch (IOException e) {System.out.println ("Error in writing into a file!");}
+	}	
+}
