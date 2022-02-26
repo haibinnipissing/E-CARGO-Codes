@@ -4,6 +4,8 @@ Please cite:
 [1]H. Zhu, and M. Zhou, “M–M Role-Transfer Problems and Their Solutions,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 39, no. 2, Mar. 2009, pp. 448-459. 
 [2]H. Zhu, and M. Zhou, “Role Transfer Problems and Algorithms,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 38, no. 6, Nov. 2008, pp. 1442-1450. 
 [3]H. Zhu, and M.C. Zhou, “Efficient Role Transfer Based on Kuhn–Munkres Algorithm”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no.2, 2012, pp. 491 - 496. 
+[4] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+[5] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589.]
 */
 
 import java.util.Arrays;
