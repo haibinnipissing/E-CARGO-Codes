@@ -2,7 +2,9 @@
  * An implementation of the Group Role Assignment with Cooperation and Conflict Factors;
  [1] H. Zhu, Y. Sheng, X.-Z. Zhou, Y. Zhu, “Group Role Assignment with Cooperation and Conflict Factors”,  IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 48, no. 6, June 2018, pp. 851 – 863.
  [2]	H. Zhu, “Avoiding Conflicts by Group Role Assignment”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 46, no. 4, April 2016, pp. 535-547.
- 
+ [3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [4] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, 2006, pp. 578-589. 
+ [5] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
  * @author Haibin Zhu, 2015
  */
 
