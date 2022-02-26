@@ -5,7 +5,10 @@
  * There are 20 industries and 30 regions with names. 
  * Haibin Zhu, Dec. 20, 2020
  * Please cite:
- * H. Zhu (2021), “Why Did Mr. Trump Oppose Globalization? An E-CARGO Approach,” IEEE Transactions on Computational Social Systems (In Press), DOI: 10.1109/TCSS.2021.3077369, avail: https://ieeexplore.ieee.org/document/9439864 .
+ [1] H. Zhu (2021), “Why Did Mr. Trump Oppose Globalization? An E-CARGO Approach,” IEEE Trans. on Computational Social Systems,, vol. 8, no. 6, Dec. 2021, pp. 1333–1343.
+ [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021. 
+ [3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+ [4] H. Zhu, and M. Zhou, “Role-Based Collaboration and its Kernel Mechanisms,” IEEE Trans. on Systems, Man, and Cybernetics, Part C: Applications and Reviews, vol. 36, no. 4, July. 2006, pp. 578-589.
  */
 
 
