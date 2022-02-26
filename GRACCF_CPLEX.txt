@@ -1,7 +1,8 @@
 /**
  * An implementation of the Group Role Assignment with Cooperation and Conflict Factors;
- * H. Zhu, Y. Sheng, X.-Z. Zhou, Y. Zhu, “Group Role Assignment with Cooperation and Conflict Factors”, 
- * IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 48, no. 6, June 2018, pp. 851 – 863.
+ [1] H. Zhu, Y. Sheng, X.-Z. Zhou, Y. Zhu, “Group Role Assignment with Cooperation and Conflict Factors”,  IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 48, no. 6, June 2018, pp. 851 – 863.
+ [2]	H. Zhu, “Avoiding Conflicts by Group Role Assignment”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 46, no. 4, April 2016, pp. 535-547.
+ 
  * @author Haibin Zhu, 2015
  */
 
