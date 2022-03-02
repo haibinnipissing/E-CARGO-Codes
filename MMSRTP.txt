@@ -1,8 +1,9 @@
 /*
  * This program is for Temporal Role Transfer with Strong Restriction.
 Please cite:
-[1]H. Zhu, and M. Zhou, “M–M Role-Transfer Problems and Their Solutions,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 39, no. 2, Mar. 2009, pp. 448-459. 
-[2]H. Zhu, and M. Zhou, “Role Transfer Problems and Algorithms,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 38, no. 6, Nov. 2008, pp. 1442-1450. 
+[1] H. Zhu, and M. Zhou, “M–M Role-Transfer Problems and Their Solutions,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 39, no. 2, Mar. 2009, pp. 448-459. 
+[2] H. Zhu, and M. Zhou, “Role Transfer Problems and Algorithms,” IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 38, no. 6, Nov. 2008, pp. 1442-1450. 
+[3] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
 */
 import java.math.BigInteger;
 import java.util.Random;
