@@ -42,9 +42,6 @@ class GRA:
             )
         gra.solve()
         T = [None]*mn
-        print(gra.variables())
-        #        .sort(key=lambda x:int(x.name[11:len(x.name)])))
-#        print(gra.variables().sort(key=lambda x:int(x.name[11:len(x.name)])))
         for v in gra.variables():
             print(v.name, " ", v.varValue)
             ind = int(v.name[11:len(v.name)])
