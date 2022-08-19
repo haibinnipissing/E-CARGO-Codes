@@ -1,0 +1,119 @@
+"""
+This is a Python Implementation for GRA and WGRA using Pulp.
+Please cite:
+[1] H. Zhu, "Group Role Assignment with Constraints (GRA+): A New Category of Assignment Problems," IEEE Trans. on Systems, Man, and Cybernetics: Systems (In Press), 2022, DOI: 10.1109/TSMC.2022.3199096.
+[2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
+[3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+[4] H. Zhu, “Avoiding Conflicts by Group Role Assignment”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 46, no. 4, April 2016, pp. 535-547.
+Authors: Haibin Zhu, Aug. 19, 2022
+"""
+
+import pulp
+import time
+
+class GMRA:
+    def __init__(self, nagent, nrole, QM, RA, LA):
+        self.m = nagent
+        self.n = nrole
+        self.L = RA
+        self.Q = QM
+        self.LA = LA
+
+    @property
+    def resolve(self):
+        Agents = range(self.m)
+        Roles = range(self.n)
+        gra = pulp.LpProblem("GRA Model", pulp.LpMaximize)
+        Assignments = [i*n+j for i in Agents for j in Roles]
+        mn=self.m*self.n
+        vars = pulp.LpVariable.dicts("Assignment", range (mn), 0, 1, pulp.LpInteger)
+        # The objective function is added to 'prob' first
+        gra += (
+            pulp.lpSum([vars[index] * self.Q[int(index / n)][index % n] for index in Assignments]),
+            "Sum_of_Assignments",
+        )
+        for j in Roles:
+            gra += (
+                pulp.lpSum([vars[i*n+j] for i in Agents]) == self.L[j],
+                "each_role%s" % j,
+            )
+        for i in Agents:
+            gra += (
+                pulp.lpSum([vars[i*n+j] for j in Roles]) <= self.LA[i],
+                "each_agent%s" % i,
+            )
+
+        gra.solve()
+        T = [None]*mn
+        for v in gra.variables():
+            print(v.name, " ", v.varValue)
+            ind = int(v.name[11:len(v.name)])
+            if abs(1 - v.varValue) < 0.0001:
+                T[ind]=1
+            else:
+                T[ind]=0
+        return T
+
+def printDMatrix(x, m, n):
+        txt = "{:.2f}"
+        for i in range(m):
+            for j in range(n):
+                print(txt.format(x[i][j]), " ", end='')
+            print()
+def printIMatrix(x, m, n):
+        txt = "{:2}"
+        for i in range(m):
+            for j in range(n):
+                print(txt.format(x[i][j]), " ", end='')
+            print()
+def sigmaL(L):
+        total = 0
+        for j in range(len(L)):
+            total += L[j]
+        return total
+import copy
+def getWQ(m, n, Q, W):
+        maxQ = 1
+        WQ = copy.deepcopy(Q)
+        for i in range(m):
+            for j in range(n):
+                WQ[i][j] = Q[i][j] * W[j]
+                if WQ[i][j] > maxQ:
+                    maxQ = WQ[i][j]
+        for i in range(m):
+            for j in range(n):
+                WQ[i][j] = WQ[i][j] / maxQ
+        return WQ
+
+m = 6
+n = 4
+L = [2, 3, 5, 2]
+LA = [2, 3, 2, 2, 1, 2]
+Q = [
+    [0.96, 0.51, 0.45, 0.64],
+    [0.22, 0.33, 0.68, 0.33],
+    [0.35, 0.80, 0.58, 0.35],
+    [0.84, 0.85, 0.86, 0.36],
+    [0.96, 0.90, 0.88, 0.87],
+    [0.78, 0.67, 0.80, 0.62]]
+
+t1 = int(round(time.time() * 1000))
+PulpGMRA = GMRA(m, n, Q, L, LA)
+T = PulpGMRA.resolve
+t2 = int(round(time.time() * 1000))
+diff1 = t2 - t1
+print("Q=")
+printDMatrix(Q, m, n);
+mat = []
+while T != []:
+    mat.append(T[:n])
+    T = T[n:]
+printIMatrix(mat, m,n)
+print("L=", L)
+print("LA=", LA)
+v1 = 0
+for i in range(m):
+        for j in range(n):
+            v1+= Q[i][j] * mat[i][j]
+print("Total GRACAR =", "{:.2f}".format(v1), " ", "Time = ", diff1, "ms")
+del PulpGMRA
