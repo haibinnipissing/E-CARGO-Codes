@@ -4,8 +4,8 @@ Please cite:
 [1] H. Zhu, "Group Role Assignment with Constraints (GRA+): A New Category of Assignment Problems," IEEE Trans. on Systems, Man, and Cybernetics: Systems (In Press), 2022, DOI: 10.1109/TSMC.2022.3199096.
 [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
 [3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
-[4] H. Zhu, “Avoiding Conflicts by Group Role Assignment”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 46, no. 4, April 2016, pp. 535-547.
-Authors: Haibin Zhu, Aug. 19, 2022
+[4] H. Zhu, D. Liu, S. Zhang, Y. Zhu, L. Teng, S. Teng, “Solving the Many to Many Assignment Problem by Improving the Kuhn-Munkres Algorithm with Backtracking”, Theoretical Computer Science, vol. 618, March 2016, pp. 30-41.
+[5] H. Zhu, D. Liu, S. Zhang, S. Teng, and Y. Zhu, “Solving the Group Multi-Role Assignment Problem by Improving the ILOG Approach”, IEEE Trans. on Systems, Man, and Cybernetics: Systems, vol. 47, no. 12, Dec. 2017, pp. 3418-3424. 
 """
 
 import pulp
