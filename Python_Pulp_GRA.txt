@@ -24,7 +24,7 @@ class GRA:
         gra = pulp.LpProblem("GRA Model", pulp.LpMaximize)
         Assignments = [i*n+j for i in Agents for j in Roles]
         mn=self.m*self.n
-        vars = pulp.LpVariable.dicts("Assignment", range (mn), 0, None, pulp.LpInteger)
+        vars = pulp.LpVariable.dicts("Assignment", range (mn), 0, 1, pulp.LpInteger)
         # The objective function is added to 'prob' first
         gra += (
             pulp.lpSum([vars[index] * self.Q[int(index / n)][index % n] for index in Assignments]),
