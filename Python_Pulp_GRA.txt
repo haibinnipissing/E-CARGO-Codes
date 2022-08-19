@@ -1,7 +1,7 @@
 """
 This is a Python Implementation for GRA and WGRA using Pulp.
 Please cite:
-[1] H. Zhu, "Group Role Assignment with Constraints (GRA+): A New Category of Assignment Problems," IEEE Trans. on Systems, Man, and Cybernetics: Systems (In Press), 2022, DOI: 10.1109/TSMC.2022.3199096.
+[1]	H. Zhu, "Group Role Assignment with Constraints (GRA+): A New Category of Assignment Problems," IEEE Trans. on Systems, Man, and Cybernetics: Systems (In Press), 2022, DOI: 10.1109/TSMC.2022.3199096.
 [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
 [3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
 Authors: Haibin Zhu, Aug. 2022
@@ -32,13 +32,8 @@ class GRA:
         )
         for j in Roles:
             gra += (
-                pulp.lpSum([vars[i*n+j] for i in Agents]) >= self.L[j],
+                pulp.lpSum([vars[i*n+j] for i in Agents]) == self.L[j],
                 "each_role%s" % j,
-            )
-        for j in Roles:
-            gra += (
-                pulp.lpSum([vars[i*n+j] for i in Agents]) <= self.L[j],
-                "lesseach_role%s" % j,
             )
         for i in Agents:
             gra += (
