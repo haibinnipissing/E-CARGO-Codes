@@ -125,11 +125,11 @@ Q = [
 """
 t1 = int(round(time.time() * 1000))
 # Th Next statement is for GRA
-ILOG = GRA(m, n, Q, L)
+PGRA = GRA(m, n, Q, L)
 # Replace the above line by the following three lines, you will get WGRA
 #WQ=getWQ (m ,n, Q, W)
-#ILOG = GRA(m, n, WQ, L)
-T = ILOG.resolve
+#PGRA = GRA(m, n, WQ, L)
+T = PGRA.resolve
 t2 = int(round(time.time() * 1000))
 diff1 = t2 - t1
 print("Q=")
