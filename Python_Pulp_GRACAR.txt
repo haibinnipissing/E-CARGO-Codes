@@ -1,5 +1,5 @@
 """
-This is a Python Implementation for GRA and WGRA using Pulp.
+This is a Python Implementation for GRACAR using Pulp.
 Please cite:
 [1] H. Zhu, "Group Role Assignment with Constraints (GRA+): A New Category of Assignment Problems," IEEE Trans. on Systems, Man, and Cybernetics: Systems (In Press), 2022, DOI: 10.1109/TSMC.2022.3199096.
 [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
