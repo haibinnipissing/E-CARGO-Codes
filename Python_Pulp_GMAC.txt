@@ -1,5 +1,5 @@
 """
-This is a Python Implementation for GMAC (Group Multi-role Assignment with Conflicting agents and roles) using Pulp.
+This is a Python Implementation for GMAC (Group Multi-role Assignment with Conflicting agents and roles) using Pulp, i.e., Problem 6 in [1].
 Please cite:
 [1] H. Zhu, “Group Multi-role Assignment with Conflicting Roles and Agents,” IEEE/CAA J. of Automatica Sinica, vol. 7, no. 6, Nov. 2020, pp. 1498-1510.
 [2] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
