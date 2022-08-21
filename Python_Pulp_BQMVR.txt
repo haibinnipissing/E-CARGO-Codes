@@ -1,0 +1,105 @@
+"""
+This is a Python implementation of BQMVR (Best Qualified Agents for Most Valuable Role),
+i.e., Algorithms 1 and 2 of [2].
+It can be used as a benchmark for comparing with other assignment methods.
+Please cite:
+[1] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
+[2] H. Zhu, “Pareto Improvement: A GRA Perspective,” IEEE Trans. on Computational Social Systems, 2022 (In press), avail: https://ieeexplore.ieee.org/document/9744722.
+[3] H. Zhu, M.C. Zhou, and R. Alkins, “Group Role Assignment via a Kuhn-Munkres Algorithm-based Solution”, IEEE Trans. on Systems, Man, and Cybernetics, Part A: Systems and Humans, vol. 42, no. 3, May 2012, pp. 739-750.
+Authors: Haibin Zhu, Aug. 20, 2022
+"""
+def printIMatrix(x, m, n):
+    txt = "{:2}"
+    for i in range(m):
+        for j in range(n):
+            print(txt.format(x[i*n+j]), " ", end='')
+        print()
+
+def printDMatrix(x, m, n):
+    txt = "{:.2f}"
+    for i in range(m):
+        for j in range(n):
+            print(txt.format(x[i][j]), " ", end='')
+        print()
+
+def sum(s, e, L):
+    total = 0
+    for i in range (s,e):
+        total+=L[i]
+    return total
+
+def CardinalityOfVector (m, n, L, U):
+    X = L
+    j = 0
+    k = m
+    while  j < n:
+        sm = sum(j+1, n, X)
+        diff = k - U[j]
+        if  diff >= sm:
+            X[j]=U[j]
+            k -= U[j]
+            j = j+1
+        else:
+            break
+    if j < n:
+        X[j] = X[j] + k - sum(j, n, X)
+    return X
+
+def tupleV (V):
+    n = len(V)
+    nV =[(V[i], i) for i in range (n)]
+    nV.sort(reverse=True)
+    return nV
+
+def BQMVR (m, n, Q, L, U, Vb):
+    A = [i for i in range (m)]
+    T = [0]*m*n
+    nVb=tupleV(Vb)
+    Lp =[L[i] for i in [nVb[j][1] for j in range (n)]]
+    Up =[U[i] for i in [nVb[j][1] for j in range (n)]]
+    X = CardinalityOfVector (m, n, Lp, Up)
+    for j1 in range (n):
+        j = nVb[j1][1]
+        Y = [Q[i][j] for i in range (m)]
+        tY=tupleV (Y)
+        for i1 in range (X[j]):
+            ii = tY[i1][1]
+            T[ii*n+j] = 1
+            for j2 in range (n):
+                Q[ii][j2] = -1
+            A.remove(ii)
+            if len(A) == 0:
+                break
+        if len(A) == 0:
+            break
+    return T
+def rearrange(T, V):
+    tV = tupleV(V);
+    T1 = [0]*m*n
+    for i in range (m):
+        for j in range (n):
+            T1[i*n+tV[j][1]] = T[i*n+j]
+    return T1
+
+m = 8
+n = 4
+L = [1,1,2,1]
+U = [2,3,2,3]
+Q = [
+    [0.35, 0.82, 0.58, 0.45],
+    [0.62, 0.78, 0.68, 0.31],
+    [0.96, 0.50, 0.10, 0.73],
+    [0.20, 0.50, 0.80, 0.96],
+    [0.38, 0.54, 0.72, 0.20],
+    [0.91, 0.31, 0.34, 0.15],
+    [0.45, 0.68, 0.53, 0.49],
+    [0.78, 0.67, 0.80, 0.62]]
+printDMatrix(Q, m, n)
+V = [2, 1, 4, 3]
+T = BQMVR (m, n, Q, L, U, V)
+T1 = rearrange(T, V)
+printIMatrix(T1, m, n)
+print (L)
+print (U)
+print (V)
+
