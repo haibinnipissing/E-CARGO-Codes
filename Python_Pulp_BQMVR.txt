@@ -1,7 +1,7 @@
 """
 This is a Python implementation of BQMVR (Best Qualified Agents for Most Valuable Role),
-i.e., Algorithms 1 and 2 of [2].
-It can be used as a benchmark for comparing with other assignment methods.
+i.e., Algorithms 1 and 2 of [2] + a conversion to the T for the original role indices.
+It is a Pareto Group Role Assignment. 
 Please cite:
 [1] H. Zhu, E-CARGO and Role-Based Collaboration: Modeling and Solving Problems in the Complex World, Wiley-IEEE Press, NJ, USA, Dec. 2021.
 [2] H. Zhu, “Pareto Improvement: A GRA Perspective,” IEEE Trans. on Computational Social Systems, 2022 (In press), avail: https://ieeexplore.ieee.org/document/9744722.
